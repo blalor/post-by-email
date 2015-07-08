@@ -32,6 +32,9 @@ import exifread
 import config
 import tinys3
 
+import itsdangerous
+import hashlib
+
 import geopy
 
 
@@ -49,6 +52,8 @@ s3 = tinys3.Connection(
 
 geocoder = geopy.geocoders.OpenCage(config.OPENCAGE_API_KEY, timeout=5)
 
+signer = itsdangerous.Signer(config.ADDR_VALIDATION_HMAC_KEY, sep="^", digest_method=hashlib.sha256)
+
 
 def decode_header(hdr, default_charset="us-ascii"):
     ## decode_header returns (string, encoding)
@@ -62,9 +67,14 @@ def gps_to_float(ref, values):
     return mult * (degrees + minutes/60.0 + seconds/3600.0)
 
 
-@app.route("/email/<addr_extension>", methods=["POST"])
-def upload_email(addr_extension):
-    logger.info("processing request for %s", addr_extension)
+@app.route("/email/<sender>/<addr_hash>", methods=["POST"])
+def upload_email(sender, addr_hash):
+    logger.info("processing request from %s with hash %s", sender, addr_hash)
+    
+    if not signer.validate("^".join([sender, addr_hash])):
+        logger.warn("invalid hash from %s", sender)
+        
+        return "invalid hash", 403, {"Content-Type": "text/plain; charset=utf-8"}
     
     msg = email.message_from_file(request.stream)
     
@@ -89,7 +99,6 @@ def upload_email(addr_extension):
     fm["date"] = msg_date.isoformat()
     fm["title"] = decode_header(msg["Subject"])
     fm["slug"] = "%s-%s" % (msg_date.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S"), slugify(fm["title"].encode("unicode_escape")))
-    fm["addr_extension"] = addr_extension
 
     author = email.utils.parseaddr(decode_header(msg["From"]))
     fm["author"] = {
