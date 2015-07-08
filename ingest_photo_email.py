@@ -32,6 +32,8 @@ import exifread
 import config
 import tinys3
 
+import geopy
+
 
 from flask import Flask, request
 app = Flask(__name__)
@@ -44,6 +46,8 @@ s3 = tinys3.Connection(
     default_bucket=config.S3_IMAGE_BUCKET,
     tls=True,
 )
+
+geocoder = geopy.geocoders.OpenCage(config.OPENCAGE_API_KEY, timeout=5)
 
 
 def decode_header(hdr, default_charset="us-ascii"):
@@ -133,7 +137,17 @@ def upload_email(addr_extension):
             }
         }
         
-        ## @todo get image location name with opencagedata
+        ## get image location name with opencagedata
+        loc = geocoder.reverse(
+            [img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]],
+            exactly_one=True,
+        )
+        
+        if loc:
+            img_info["exif"]["location"]["name"] = loc.address
+        else:
+            logger.warn("no reverse geocoding result found for %r", (img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]))
+        
         ## @todo get image timezone from location
         
         ## abort if image already exists
