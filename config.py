@@ -4,6 +4,9 @@ import os
 
 COMMIT_CHANGES = os.environ.get("COMMIT_CHANGES", "False").lower() == "true"
 
+## tr -dc A-Za-z0-9 < /dev/urandom | head -c 40
+ADDR_VALIDATION_HMAC_KEY = os.environ["ADDR_VALIDATION_HMAC_KEY"]
+
 ## like "https://<token>:x-oauth-basic@github.com/<owner>/<repo>.git"
 ## yeah, includes the auth; should make it fairly simple, if a bit cumbersome…
 GIT_REPO = os.environ["GIT_REPO"]
