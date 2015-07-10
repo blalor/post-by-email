@@ -12,7 +12,7 @@ ADDR_VALIDATION_HMAC_KEY = os.environ["ADDR_VALIDATION_HMAC_KEY"]
 GIT_REPO = os.environ["GIT_REPO"]
 GIT_WORKING_COPY = os.environ["GIT_WORKING_COPY"]
 
-GIT_COMMITTER_NAME = os.environ["GIT_COMMITTER_NAME"]
+GIT_COMMITTER_NAME = os.environ.get("GIT_COMMITTER_NAME", "post by email")
 
 ## http://hipsterdevblog.com/blog/2014/06/22/lazy-processing-images-using-s3-and-redirection-rules/
 ## https://github.com/thumbor/thumbor/wiki
