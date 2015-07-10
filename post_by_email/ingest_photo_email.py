@@ -97,7 +97,7 @@ def upload_email(sender, addr_hash):
     fm = frontmatter = OrderedDict()
     
     fm["date"] = msg_date.isoformat()
-    fm["title"] = decode_header(msg["Subject"])
+    fm["title"] = post_title = decode_header(msg["Subject"])
     slug = "%s-%s" % (msg_date.astimezone(UTC).strftime("%Y-%m-%d"), slugify(fm["title"].encode("unicode_escape")))
 
     fm["layout"] = "post"
@@ -216,7 +216,7 @@ def upload_email(sender, addr_hash):
             git.add_file(post_full_fn)
             
             ## commit the change
-            git.commit(author_name, fm["author"]["email"], msg["date"], fm["title"])
+            git.commit(author_name, fm["author"], msg["date"], post_title)
             
             ## push the change
             git.push()
@@ -226,9 +226,5 @@ def upload_email(sender, addr_hash):
 
 
 if __name__ == "__main__":
-    if config.COMMIT_CHANGES:
-        # shutil.rmtree(config.GIT_WORKING_COPY)
-        git.clone()
-    
     logger.info("ready")
     app.run()
