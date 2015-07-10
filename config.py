@@ -2,6 +2,8 @@
 
 import os
 
+COMMIT_CHANGES = os.environ.get("COMMIT_CHANGES", "False").lower() == "true"
+
 ## like "https://<token>:x-oauth-basic@github.com/<owner>/<repo>.git"
 ## yeah, includes the auth; should make it fairly simple, if a bit cumbersome…
 GIT_REPO = os.environ["GIT_REPO"]

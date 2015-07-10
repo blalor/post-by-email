@@ -18,9 +18,7 @@ import email.header
 from slugify import slugify
 
 import json
-import subprocess
-import tempfile
-from file_lock import file_lock
+from git import Git
 from time_util import parse_date, UTC
 from datetime import datetime
 
@@ -53,6 +51,8 @@ s3 = tinys3.Connection(
 geocoder = geopy.geocoders.OpenCage(config.OPENCAGE_API_KEY, timeout=5)
 
 signer = itsdangerous.Signer(config.ADDR_VALIDATION_HMAC_KEY, sep="^", digest_method=hashlib.sha256)
+
+git = Git(config.GIT_REPO, config.GIT_WORKING_COPY)
 
 
 def decode_header(hdr, default_charset="us-ascii"):
@@ -182,23 +182,10 @@ def upload_email(sender, addr_hash):
     
     logger.debug("generating %s", post_full_fn)
 
-    with file_lock(os.path.join(config.GIT_WORKING_COPY, ".git", "render_post.lock")):
-        ## make the current master the same as the origin's master
-        subprocess.check_call(["git", "fetch"], cwd=config.GIT_WORKING_COPY)
-        subprocess.check_call(
-            [
-                "git", "reset",
-                "--quiet",
-                "--hard", "origin/master",
-            ],
-            cwd=config.GIT_WORKING_COPY,
-        )
-        
-        ## make it squeaky clean
-        subprocess.check_call(
-            ["git", "clean", "-f", "-d", "-x"],
-            cwd=config.GIT_WORKING_COPY,
-        )
+    with git.lock():
+        if config.COMMIT_CHANGES:
+            ## make the current master the same as the origin's master
+            git.clean_sweep()
         
         ## @todo consider making every change a PR and automatically approving them
 
@@ -218,68 +205,24 @@ def upload_email(sender, addr_hash):
         
         logger.info("generated %s", post_rel_fn)
         
-        ## add the new file
-        subprocess.check_call(
-            ["git", "add", post_rel_fn],
-            cwd=config.GIT_WORKING_COPY,
-        )
-        
-        ## commit the change
-        # @todo ensure there are actual changes to be made
-        ## write commit message to temp file
-        with tempfile.TemporaryFile() as tf:
-            tf.write(fm["title"].encode("utf-8"))
-            tf.seek(0)
+        if config.COMMIT_CHANGES:
+            ## add the new file
+            git.add_file(post_full_fn)
             
-            subprocess.check_call(
-                [
-                    "git", "commit",
-                    "--file=-",
-                    "--quiet",
-                ],
-                stdin=tf,
-                cwd=config.GIT_WORKING_COPY,
-                env={
-                    "GIT_AUTHOR_NAME":     fm["author"]["name"],
-                    "GIT_AUTHOR_EMAIL":    fm["author"]["email"],
-                    "GIT_AUTHOR_DATE":     msg["date"],
-                    
-                    ## adding delivered-to exposes the email address used to create posts!
-                    # "GIT_COMMITTER_NAME":  config.GIT_COMMITTER_NAME,
-                    # "GIT_COMMITTER_EMAIL": msg["delivered-to"],
-                },
-            )
-        
-        ## push the change
-        subprocess.check_call(
-            [
-                "git", "push", "--quiet"
-            ],
-            cwd=config.GIT_WORKING_COPY,
-        )
+            ## commit the change
+            git.commit(author_name, fm["author"]["email"], msg["date"], fm["title"])
+            
+            ## push the change
+            git.push()
 
     logger.info("successfully created %s", post_rel_fn)
     return post_rel_fn, 201, {"Content-Type": "text/plain; charset=utf-8"}
 
 
 if __name__ == "__main__":
-    logger.info("cloning repository")
-    
-    shutil.rmtree(config.GIT_WORKING_COPY)
-    
-    subprocess.check_call(
-        [
-            "git", "clone",
-            "--depth", "1",
-            "--quiet",
-            config.GIT_REPO,
-            config.GIT_WORKING_COPY,
-        ],
-        env={
-            ## disable template; my pre-commit hook checks for user.{email,name}
-            "GIT_TEMPLATE_DIR": "",
-        },
-    )
+    if config.COMMIT_CHANGES:
+        # shutil.rmtree(config.GIT_WORKING_COPY)
+        git.clone()
     
     logger.info("ready")
     app.run()
