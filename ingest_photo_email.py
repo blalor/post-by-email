@@ -17,7 +17,7 @@ import email
 import email.header
 from slugify import slugify
 
-import json
+import rtyaml as yaml
 from git import Git
 from time_util import parse_date, UTC
 from datetime import datetime
@@ -98,13 +98,14 @@ def upload_email(sender, addr_hash):
     
     fm["date"] = msg_date.isoformat()
     fm["title"] = decode_header(msg["Subject"])
-    fm["slug"] = "%s-%s" % (msg_date.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S"), slugify(fm["title"].encode("unicode_escape")))
+    slug = "%s-%s" % (msg_date.astimezone(UTC).strftime("%Y-%m-%d"), slugify(fm["title"].encode("unicode_escape")))
 
-    author = email.utils.parseaddr(decode_header(msg["From"]))
-    fm["author"] = {
-        "name": author[0],
-        "email": author[1],
-    }
+    fm["layout"] = "post"
+    
+    fm["categories"] = "blog"
+    fm["tags"] = ["photo"]
+    
+    author_name, fm["author"] = email.utils.parseaddr(decode_header(msg["From"]))
     
     ## message body, decoded
     body = unicode(
@@ -112,8 +113,8 @@ def upload_email(sender, addr_hash):
         msg_parts["text/plain"][0].get_content_charset("utf-8"),
     )
 
-    post_rel_fn = os.path.join("post", fm["slug"] + ".md")
-    post_full_fn = os.path.join(config.GIT_WORKING_COPY, post_rel_fn)
+    post_rel_fn = slug + ".md"
+    post_full_fn = os.path.join(config.GIT_WORKING_COPY, "_posts", "blog", post_rel_fn)
     
     if os.path.exists(post_full_fn):
         logger.error("post %s already exists", post_rel_fn)
@@ -124,9 +125,15 @@ def upload_email(sender, addr_hash):
     
     fm["images"] = []
     for photo in msg_parts["image/jpeg"]:
-        img_info = {}
-        s3_obj_name = os.path.join(config.S3_IMAGE_PATH_PREFIX, fm["slug"], photo.get_filename())
+        img_info = OrderedDict()
+        s3_obj_name = os.path.join(config.S3_IMAGE_PATH_PREFIX, slug, photo.get_filename())
 
+        ## abort if image already exists
+        if [k for k in s3.list(s3_obj_name)]:
+            logger.error("image %s already exists in S3", s3_obj_name)
+            
+            return "image %s exists in S3" % s3_obj_name, 409, {"Content-Type": "text/plain; charset=utf-8"}
+        
         img_info["path"] = s3_obj_name
 
         logger.debug("processing %s", s3_obj_name)
@@ -135,6 +142,7 @@ def upload_email(sender, addr_hash):
         exif_tags = exifread.process_file(photo_io)
 
         img_info["exif"] = {
+            ## use GPSDate, GPSTimeStamp if available
             "dateTimeOriginal": datetime.strptime(exif_tags["EXIF DateTimeOriginal"].printable, "%Y:%m:%d %H:%M:%S").isoformat(),
             "cameraMake": exif_tags["Image Make"].printable,
             "cameraModel": exif_tags["Image Model"].printable,
@@ -153,17 +161,10 @@ def upload_email(sender, addr_hash):
         )
         
         if loc:
+            ## @todo set image timezone from location?
             img_info["exif"]["location"]["name"] = loc.address
         else:
             logger.warn("no reverse geocoding result found for %r", (img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]))
-        
-        ## @todo get image timezone from location
-        
-        ## abort if image already exists
-        if [k for k in s3.list(s3_obj_name)]:
-            logger.error("image %s already exists in S3", s3_obj_name)
-            
-            return "image %s exists in S3" % s3_obj_name, 409, {"Content-Type": "text/plain; charset=utf-8"}
         
         ## upload image to s3
         logger.debug("uploading to S3: %s", s3_obj_name)
@@ -196,11 +197,16 @@ def upload_email(sender, addr_hash):
             ## I *want* to use yaml, but I can't get it to properly to encode
             ## "Test 🔫"; kept getting "Test \uD83D\uDD2B" which the Go yaml parser
             ## bitched about.
-            json.dump(frontmatter, ofp, indent=4)
+            ## but I'm not hitched to hugo, yet, and yaml is what jekyll uses, so…
+            ofp.write("---\n")
+            
+            ## hack for title which the yaml generator won't do properly
+            ofp.write('title: "%s"\n' % fm["title"])
+            del fm["title"]
+            yaml.dump(frontmatter, ofp)
 
-            ## 2 extra newlines; json.dump doesn't write a newline and we want a
-            ## space between the frontmatter and the body
-            ofp.write("\n\n")
+            ## we want an space between the frontmatter and the body
+            ofp.write("---\n\n")
             ofp.write(body)
         
         logger.info("generated %s", post_rel_fn)
