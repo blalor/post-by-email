@@ -12,14 +12,13 @@ logging.basicConfig(format=log_format, level=logging.WARN)
 # syslog_handler.setFormatter(logging.Formatter(log_format))
 
 import os
-import shutil
 import email
 import email.header
 from slugify import slugify
 
 import rtyaml as yaml
-from git import Git
-from time_util import parse_date, UTC
+from lib.git import Git
+from lib.time_util import parse_date, UTC
 from datetime import datetime
 
 from collections import OrderedDict

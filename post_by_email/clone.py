@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
-from git import Git
+from lib.git import Git
 import config
 
 
