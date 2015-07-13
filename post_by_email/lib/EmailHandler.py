@@ -1,0 +1,177 @@
+# -*- encoding: utf-8 -*-
+
+import logging
+import os
+import email.header
+import StringIO
+import codecs
+
+from slugify import slugify
+import rtyaml as yaml
+import requests
+
+from lib.time_util import parse_date, UTC
+import lib.exif_renderer as exif_renderer
+from collections import OrderedDict
+
+
+def decode_header(hdr, default_charset="us-ascii"):
+    ## decode_header returns (string, encoding)
+    val, charset = email.header.decode_header(hdr)[0]
+    return unicode(val, charset if charset else default_charset)
+
+
+class PostExistsException(Exception):
+    pass
+
+
+class ImageExistsException(Exception):
+    pass
+
+
+class EmailHandler(object):
+    """Generates Jekyll post from an email, possibly with attachments"""
+    def __init__(self, s3, s3_prefix, geocoder, git, commit_changes=False):
+        super(EmailHandler, self).__init__()
+        
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+        self.s3 = s3
+        self.s3_prefix = s3_prefix
+        self.geocoder = geocoder
+        self.git = git
+        self.commit_changes = commit_changes
+    
+    def process_stream(self, stream):
+        return self.process_message(email.message_from_file(stream))
+    
+    def process_message(self, msg):
+        self.logger.debug("%s from %s to %s: %s", msg["message-id"], msg["from"], msg["to"], msg["subject"])
+        
+        msg_date = parse_date(msg["Date"])
+        
+        ## group the parts by type
+        msg_parts = {}
+        for content_type, part in [(p.get_content_type(), p) for p in msg.walk()]:
+            if content_type not in msg_parts:
+                msg_parts[content_type] = []
+            
+            msg_parts[content_type].append(part)
+        
+        assert "text/plain" in msg_parts, "can't find plain text body"
+        assert "image/jpeg" in msg_parts, "can't find JPEG attachment(s)"
+        
+        ## start building post frontmatter from headers
+        fm = frontmatter = OrderedDict()
+        
+        fm["date"] = msg_date.isoformat()
+        fm["title"] = post_title = decode_header(msg["Subject"])
+        slug = "%s-%s" % (msg_date.astimezone(UTC).strftime("%Y-%m-%d"), slugify(fm["title"].encode("unicode_escape")))
+
+        fm["layout"] = "post"
+        
+        fm["categories"] = "blog"
+        fm["tags"] = ["photo"]
+        
+        author_name, fm["author"] = email.utils.parseaddr(decode_header(msg["From"]))
+        
+        ## message body, decoded
+        body = unicode(
+            msg_parts["text/plain"][0].get_payload(decode=True),
+            msg_parts["text/plain"][0].get_content_charset("utf-8"),
+        )
+
+        post_rel_fn = slug + ".md"
+        post_full_fn = os.path.join(self.git.repo_path, "_posts", "blog", post_rel_fn)
+        
+        if os.path.exists(post_full_fn):
+            raise PostExistsException(post_rel_fn)
+
+        # @todo strip signature from body
+        
+        fm["images"] = []
+        for photo in msg_parts["image/jpeg"]:
+            img_info = OrderedDict()
+            s3_obj_name = os.path.join(self.s3_prefix, slug, photo.get_filename())
+
+            ## abort if image already exists
+            if [k for k in self.s3.list(s3_obj_name)]:
+                raise ImageExistsException(s3_obj_name)
+            
+            img_info["path"] = s3_obj_name
+
+            self.logger.debug("processing %s", s3_obj_name)
+
+            photo_io = StringIO.StringIO(photo.get_payload(decode=True))
+            img_info["exif"] = exif_renderer.render_stream(photo_io)
+            
+            ## get image location name with opencagedata
+            loc = self.geocoder.reverse(
+                [img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]],
+                exactly_one=True,
+            )
+            
+            if loc:
+                ## @todo set image timezone from location?
+                img_info["exif"]["location"]["name"] = loc.address
+            else:
+                self.logger.warn("no reverse geocoding result found for %r", (img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]))
+            
+            ## upload image to s3
+            self.logger.debug("uploading to S3: %s", s3_obj_name)
+
+            self.s3.upload(
+                s3_obj_name,
+                photo_io,
+                content_type="image/jpeg",  # @todo
+                close=True,  # close file afterwards
+                rewind=True,  # defaults to True, but just in case…
+            )
+
+            self.logger.info("uploaded %s to S3", s3_obj_name)
+
+            fm["images"].append(img_info)
+        
+        self.logger.debug("generating %s", post_full_fn)
+
+        with self.git.lock():
+            if self.commit_changes:
+                ## make the current master the same as the origin's master
+                self.git.clean_sweep()
+            
+            ## @todo consider making every change a PR and automatically approving them
+
+            if not os.path.exists(os.path.dirname(post_full_fn)):
+                os.makedirs(os.path.dirname(post_full_fn))
+            
+            with codecs.open(post_full_fn, "w", encoding="utf-8") as ofp:
+                ## I *want* to use yaml, but I can't get it to properly to encode
+                ## "Test 🔫"; kept getting "Test \uD83D\uDD2B" which the Go yaml parser
+                ## bitched about.
+                ## but I'm not hitched to hugo, yet, and yaml is what jekyll uses, so…
+                ofp.write("---\n")
+                
+                ## hack for title which the yaml generator won't do properly
+                ofp.write('title: "%s"\n' % fm["title"])
+                del fm["title"]
+                yaml.dump(frontmatter, ofp)
+
+                ## we want an space between the frontmatter and the body
+                ofp.write("---\n\n")
+                ofp.write(body)
+            
+            self.logger.info("generated %s", post_rel_fn)
+            
+            if self.commit_changes:
+                ## add the new file
+                self.git.add_file(post_full_fn)
+                
+                ## commit the change
+                self.git.commit(author_name, fm["author"], msg["date"], post_title)
+                
+                ## push the change
+                self.git.push()
+            else:
+                self.logger.warn("not committing changes")
+        
+        return post_rel_fn

@@ -19,8 +19,12 @@ export PKG_CONFIG_PATH="$( scl enable python27 'echo ${PKG_CONFIG_PATH}' )"
 easy_install-2.7 pip==7.1.0
 pip2.7 install -r /post_by_email/requirements.txt
 
+## run tests
+nosetests -w /post_by_email/
+
 mkdir -p /var/log/post-by-email
 chown nobody:nobody /var/log/post-by-email
+
 
 ## cleanup
 cd /

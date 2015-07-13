@@ -16,4 +16,4 @@ exec gunicorn \
     --timeout 180 \
     --access-logfile /var/log/post-by-email/access.log \
     --workers 2 \
-    ingest_photo_email:app
+    FlaskApp:app

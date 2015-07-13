@@ -2,8 +2,9 @@ Service for posting to a [Jekyll](http://jekyllrb.com) blog via email
 
 With a particular focus on posting images.  Intended to run in a Docker container, exposing an HTTP endpoint for submitting emails to be processed.  Integrates with your/a email account via procmail:
 
-    ## set ADDR_EXT to "bar" of "foo+bar@whatever.com"
-    ADDR_EXT=$1
+    ## set ADDR_EXT to "Bar" of "foo+Bar@whatever.com"
+    ## postfix turns this into "bar", which breaks HMAC validation. :-(
+    ADDR_EXT=` formail -z -xTo: | sed -r -e 's#^.*\+(.*)@.*$#\1#g' `
     
     ## figure out who actually sent the message
     SENDER = `formail -rtz -xTo:`
@@ -17,7 +18,7 @@ Stores any image attachments in S3 and adds a new post to your Jekyll repository
 
 ```yaml
 ---
-title: '<email Subject>''
+title: '<email Subject>'
 date: '<email Date>'
 layout: post
 categories: blog
