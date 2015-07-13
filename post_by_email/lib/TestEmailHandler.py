@@ -168,6 +168,26 @@ nobody@home.com
         ok_(body.startswith("\nsome text ramble ramble"))
         ok_("-- \nNobody\nnobody@home.com" not in body, "found signature")
 
+    def test_stripSignature2(self):
+        msg = MIMEText("""some text ramble ramble bla bla bla
+
+Sent from my iPhone""")
+
+        msg["Message-ID"] = "7351da42-12a8-41a1-9b60-25ee7b784720"
+        msg["From"] = "Brian Lalor <blalor@bravo5.org>"
+        msg["To"] = "photos@localhost"
+        msg["Subject"] = "just some text"
+        msg["Date"] = formatdate(1436782211)
+        
+        post_path = self.handler.process_message(msg)
+        
+        eq_(post_path, "2015-07-13-just-some-text.md")
+        post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
+        
+        _, body = parse_post(post_fn)
+        ok_(body.startswith("\nsome text ramble ramble"))
+        ok_("Sent from my iPhone" not in body, "found signature")
+
     def test_addTagsFromMsg(self):
         msg = MIMEText("""tags: foo, baz bap
 some text ramble ramble bla bla bla

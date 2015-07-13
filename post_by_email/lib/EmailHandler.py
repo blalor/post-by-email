@@ -31,6 +31,9 @@ class ImageExistsException(Exception):
 
 class EmailHandler(object):
     """Generates Jekyll post from an email, possibly with attachments"""
+
+    SIG_DELIMITER = re.compile(r"""^(--\s*|Sent from my iPhone)$""", re.IGNORECASE)
+
     def __init__(self, s3, s3_prefix, geocoder, git, commit_changes=False):
         super(EmailHandler, self).__init__()
         
@@ -41,8 +44,6 @@ class EmailHandler(object):
         self.geocoder = geocoder
         self.git = git
         self.commit_changes = commit_changes
-        
-        self.__sig_delimiter = re.compile(r"""^--\s*$""")
     
     def __process_image(self, slug, photo):
         img_info = OrderedDict()
@@ -131,8 +132,7 @@ class EmailHandler(object):
             raise PostExistsException(post_rel_fn)
 
         ## strip signature from body
-        ## find last occurrence of "--" on a line by itself and drop everything
-        ## else
+        ## find last occurrence of the regex and drop everything else
         body_lines = body.split("\n")
         
         ## reverse list so we look from the end
@@ -142,7 +142,7 @@ class EmailHandler(object):
         for line in body_lines:
             sig_start_ind += 1
 
-            if self.__sig_delimiter.match(line):
+            if self.SIG_DELIMITER.match(line):
                 break
         
         if sig_start_ind < len(body_lines):
