@@ -5,6 +5,7 @@ import os
 import email.header
 import StringIO
 import codecs
+import re
 
 from slugify import slugify
 import rtyaml as yaml
@@ -40,6 +41,8 @@ class EmailHandler(object):
         self.geocoder = geocoder
         self.git = git
         self.commit_changes = commit_changes
+        
+        self.__sig_delimiter = re.compile(r"""^--\s*$""")
     
     def __process_image(self, slug, photo):
         img_info = OrderedDict()
@@ -127,7 +130,27 @@ class EmailHandler(object):
         if os.path.exists(post_full_fn):
             raise PostExistsException(post_rel_fn)
 
-        # @todo strip signature from body
+        ## strip signature from body
+        ## find last occurrence of "--" on a line by itself and drop everything
+        ## else
+        body_lines = body.split("\n")
+        
+        ## reverse list so we look from the end
+        body_lines.reverse()
+        
+        sig_start_ind = 0
+        for line in body_lines:
+            sig_start_ind += 1
+
+            if self.__sig_delimiter.match(line):
+                break
+        
+        if sig_start_ind < len(body_lines):
+            ## signature found
+            body_lines = body_lines[sig_start_ind:]
+        
+        body_lines.reverse()
+        body = "\n".join(body_lines)
         
         if "image/jpeg" in msg_parts:
             fm["tags"].append("photo")

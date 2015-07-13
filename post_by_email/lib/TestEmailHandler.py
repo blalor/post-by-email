@@ -11,9 +11,9 @@ import gzip
 import rtyaml as yaml
 import StringIO
 import geopy
-import requests
 from email.mime.text import MIMEText
 from email.utils import formatdate
+
 
 def parse_post(fn):
     buf = StringIO.StringIO()
@@ -127,3 +127,26 @@ class TestEmailHandler:
         eq_(frontmatter["author"], "blalor@bravo5.org")
         ok_("photo" not in frontmatter["tags"])
         ok_("images" not in frontmatter)
+
+    def test_stripSignature(self):
+        msg = MIMEText("""some text ramble ramble bla bla bla
+
+-- 
+Nobody
+nobody@home.com
+""")
+
+        msg["Message-ID"] = "7351da42-12a8-41a1-9b60-25ee7b784720"
+        msg["From"] = "Brian Lalor <blalor@bravo5.org>"
+        msg["To"] = "photos@localhost"
+        msg["Subject"] = "just some text"
+        msg["Date"] = formatdate(1436782211)
+        
+        post_path = self.handler.process_message(msg)
+        
+        eq_(post_path, "2015-07-13-just-some-text.md")
+        post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
+        
+        _, body = parse_post(post_fn)
+        ok_(body.startswith("\nsome text ramble ramble"))
+        ok_("-- \nNobody\nnobody@home.com" not in body, "found signature")
