@@ -150,7 +150,13 @@ class EmailHandler(object):
             body_lines = body_lines[sig_start_ind:]
         
         body_lines.reverse()
-        body = "\n".join(body_lines)
+        
+        if body_lines[0].startswith("tags:"):
+            fm["tags"].extend([t.strip() for t in body_lines[0][5:].strip().split(",")])
+            del body_lines[0]
+        
+        ## recreate body
+        body = u"\n".join(body_lines)
         
         if "image/jpeg" in msg_parts:
             fm["tags"].append("photo")

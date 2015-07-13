@@ -20,18 +20,18 @@ def parse_post(fn):
     
     with open(fn, "r") as ifp:
         ## must start with ---\n
-        line = ifp.readline()
-        eq_(line, "---\n")
+        line = ifp.readline().decode("utf-8")
+        eq_(line, u"---\n")
         
         while True:
-            line = ifp.readline()
-            if line == "---\n":
+            line = ifp.readline().decode("utf-8")
+            if line == u"---\n":
                 break
             
             buf.write(line)
     
         buf.seek(0)
-        return yaml.load(buf), ifp.read()
+        return yaml.load(buf), ifp.read().decode("utf-8")
         
 
 class TestEmailHandler:
@@ -101,6 +101,23 @@ class TestEmailHandler:
         eq_(img["exif"]["location"]["longitude"], lon)
         eq_(img["exif"]["location"]["name"], location.address)
 
+    def test_parseMessagePreservingEmoji(self):
+        msg = MIMEText(u"""Foo 👍🔫""".encode("utf-8"), "plain", "UTF-8")
+
+        msg["Message-ID"] = "7351da42-12a8-41a1-9b60-25ee7b784720"
+        msg["From"] = "Brian Lalor <blalor@bravo5.org>"
+        msg["To"] = "photos@localhost"
+        msg["Subject"] = "just some text"
+        msg["Date"] = formatdate(1436782211)
+        
+        post_path = self.handler.process_message(msg)
+        
+        eq_(post_path, "2015-07-13-just-some-text.md")
+        post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
+        
+        _, body = parse_post(post_fn)
+        eq_(body, u"\nFoo 👍🔫")
+
     def test_handleNoPhotos(self):
         msg = MIMEText("""Just a test; no photos.""")
         msg["Message-ID"] = "7351da42-12a8-41a1-9b60-25ee7b784720"
@@ -150,3 +167,25 @@ nobody@home.com
         _, body = parse_post(post_fn)
         ok_(body.startswith("\nsome text ramble ramble"))
         ok_("-- \nNobody\nnobody@home.com" not in body, "found signature")
+
+    def test_addTagsFromMsg(self):
+        msg = MIMEText("""tags: foo, baz bap
+some text ramble ramble bla bla bla
+""")
+
+        msg["Message-ID"] = "7351da42-12a8-41a1-9b60-25ee7b784720"
+        msg["From"] = "Brian Lalor <blalor@bravo5.org>"
+        msg["To"] = "photos@localhost"
+        msg["Subject"] = "just some text"
+        msg["Date"] = formatdate(1436782211)
+        
+        post_path = self.handler.process_message(msg)
+        
+        eq_(post_path, "2015-07-13-just-some-text.md")
+        post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
+        
+        frontmatter, body = parse_post(post_fn)
+        ok_("foo" in frontmatter["tags"])
+        ok_("baz bap" in frontmatter["tags"])
+        
+        ok_(body.startswith("\nsome text ramble ramble"))
