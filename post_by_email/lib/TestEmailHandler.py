@@ -2,7 +2,7 @@
 
 from EmailHandler import EmailHandler
 
-from nose.tools import eq_
+from nose.tools import eq_, ok_
 import mock
 import os
 import shutil
@@ -12,7 +12,8 @@ import rtyaml as yaml
 import StringIO
 import geopy
 import requests
-
+from email.mime.text import MIMEText
+from email.utils import formatdate
 
 def parse_post(fn):
     buf = StringIO.StringIO()
@@ -91,8 +92,38 @@ class TestEmailHandler:
         #  'tags': ['photo'],
         #  'title': 'Fenway fireworks'}
         eq_(frontmatter["author"], "blalor@bravo5.org")
+        eq_(frontmatter["categories"], "blog")
+        ok_("photo" in frontmatter["tags"])
+        
         eq_(len(frontmatter["images"]), 1)
         img = frontmatter["images"][0]
         eq_(img["exif"]["location"]["latitude"], lat)
         eq_(img["exif"]["location"]["longitude"], lon)
         eq_(img["exif"]["location"]["name"], location.address)
+
+    def test_handleNoPhotos(self):
+        msg = MIMEText("""Just a test; no photos.""")
+        msg["Message-ID"] = "7351da42-12a8-41a1-9b60-25ee7b784720"
+        msg["From"] = "Brian Lalor <blalor@bravo5.org>"
+        msg["To"] = "photos@localhost"
+        msg["Subject"] = "just some text"
+        msg["Date"] = formatdate(1436782211)
+        
+        post_path = self.handler.process_message(msg)
+        
+        eq_(post_path, "2015-07-13-just-some-text.md")
+        post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
+        
+        ok_(not self.mock_s3.list.called)
+        ok_(not self.mock_geocoder.reverse.called)
+
+        frontmatter, body = parse_post(post_fn)
+        # {'author': 'blalor@bravo5.org',
+        #  'categories': 'blog',
+        #  'date': '2015-07-05T07:28:43-04:00',
+        #  'layout': 'post',
+        #  'tags': ['photo'],
+        #  'title': 'Fenway fireworks'}
+        eq_(frontmatter["author"], "blalor@bravo5.org")
+        ok_("photo" not in frontmatter["tags"])
+        ok_("images" not in frontmatter)

@@ -8,7 +8,6 @@ import codecs
 
 from slugify import slugify
 import rtyaml as yaml
-import requests
 
 from lib.time_util import parse_date, UTC
 import lib.exif_renderer as exif_renderer
@@ -42,6 +41,48 @@ class EmailHandler(object):
         self.git = git
         self.commit_changes = commit_changes
     
+    def __process_image(self, slug, photo):
+        img_info = OrderedDict()
+        s3_obj_name = os.path.join(self.s3_prefix, slug, photo.get_filename())
+
+        ## abort if image already exists
+        if [k for k in self.s3.list(s3_obj_name)]:
+            raise ImageExistsException(s3_obj_name)
+        
+        img_info["path"] = s3_obj_name
+
+        self.logger.debug("processing %s", s3_obj_name)
+
+        photo_io = StringIO.StringIO(photo.get_payload(decode=True))
+        img_info["exif"] = exif_renderer.render_stream(photo_io)
+        
+        ## get image location name with opencagedata
+        loc = self.geocoder.reverse(
+            [img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]],
+            exactly_one=True,
+        )
+        
+        if loc:
+            ## @todo set image timezone from location?
+            img_info["exif"]["location"]["name"] = loc.address
+        else:
+            self.logger.warn("no reverse geocoding result found for %r", (img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]))
+        
+        ## upload image to s3
+        self.logger.debug("uploading to S3: %s", s3_obj_name)
+
+        self.s3.upload(
+            s3_obj_name,
+            photo_io,
+            content_type="image/jpeg",  # @todo
+            close=True,  # close file afterwards
+            rewind=True,  # defaults to True, but just in case…
+        )
+
+        self.logger.info("uploaded %s to S3", s3_obj_name)
+        
+        return img_info
+    
     def process_stream(self, stream):
         return self.process_message(email.message_from_file(stream))
     
@@ -59,7 +100,6 @@ class EmailHandler(object):
             msg_parts[content_type].append(part)
         
         assert "text/plain" in msg_parts, "can't find plain text body"
-        assert "image/jpeg" in msg_parts, "can't find JPEG attachment(s)"
         
         ## start building post frontmatter from headers
         fm = frontmatter = OrderedDict()
@@ -71,7 +111,7 @@ class EmailHandler(object):
         fm["layout"] = "post"
         
         fm["categories"] = "blog"
-        fm["tags"] = ["photo"]
+        fm["tags"] = []
         
         author_name, fm["author"] = email.utils.parseaddr(decode_header(msg["From"]))
         
@@ -89,48 +129,11 @@ class EmailHandler(object):
 
         # @todo strip signature from body
         
-        fm["images"] = []
-        for photo in msg_parts["image/jpeg"]:
-            img_info = OrderedDict()
-            s3_obj_name = os.path.join(self.s3_prefix, slug, photo.get_filename())
-
-            ## abort if image already exists
-            if [k for k in self.s3.list(s3_obj_name)]:
-                raise ImageExistsException(s3_obj_name)
-            
-            img_info["path"] = s3_obj_name
-
-            self.logger.debug("processing %s", s3_obj_name)
-
-            photo_io = StringIO.StringIO(photo.get_payload(decode=True))
-            img_info["exif"] = exif_renderer.render_stream(photo_io)
-            
-            ## get image location name with opencagedata
-            loc = self.geocoder.reverse(
-                [img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]],
-                exactly_one=True,
-            )
-            
-            if loc:
-                ## @todo set image timezone from location?
-                img_info["exif"]["location"]["name"] = loc.address
-            else:
-                self.logger.warn("no reverse geocoding result found for %r", (img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]))
-            
-            ## upload image to s3
-            self.logger.debug("uploading to S3: %s", s3_obj_name)
-
-            self.s3.upload(
-                s3_obj_name,
-                photo_io,
-                content_type="image/jpeg",  # @todo
-                close=True,  # close file afterwards
-                rewind=True,  # defaults to True, but just in case…
-            )
-
-            self.logger.info("uploaded %s to S3", s3_obj_name)
-
-            fm["images"].append(img_info)
+        if "image/jpeg" in msg_parts:
+            fm["tags"].append("photo")
+            fm["images"] = []
+            for photo in msg_parts["image/jpeg"]:
+                fm["images"].append(self.__process_image(slug, photo))
         
         self.logger.debug("generating %s", post_full_fn)
 
