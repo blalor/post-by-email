@@ -210,6 +210,21 @@ some text ramble ramble bla bla bla
         
         ok_(body.startswith("\nsome text ramble ramble"))
 
+    def test_addTagsFromMsgUppercase(self):
+        msg = MIMEText("""Tags: foo, baz bap""")
+
+        msg["Message-ID"] = "7351da42-12a8-41a1-9b60-25ee7b784720"
+        msg["From"] = "Brian Lalor <blalor@bravo5.org>"
+        msg["To"] = "photos@localhost"
+        msg["Subject"] = "just some text"
+        msg["Date"] = formatdate(1436782211)
+        
+        post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", self.handler.process_message(msg))
+        
+        frontmatter, body = parse_post(post_fn)
+        ok_("foo" in frontmatter["tags"])
+        ok_("baz bap" in frontmatter["tags"])
+
     def test_extractsGPSTimestamp(self):
         self.mock_s3.list.return_value = []
         self.mock_geocoder.reverse.return_value = None

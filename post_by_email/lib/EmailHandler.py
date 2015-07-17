@@ -151,7 +151,7 @@ class EmailHandler(object):
         
         body_lines.reverse()
         
-        if body_lines[0].startswith("tags:"):
+        if body_lines[0].lower().startswith("tags:"):
             fm["tags"].extend([t.strip() for t in body_lines[0][5:].strip().split(",")])
             del body_lines[0]
         
