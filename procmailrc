@@ -1,0 +1,30 @@
+VERBOSE="on"
+
+## set ADDR_EXT to "bar" of "foo+bar@whatever.com"
+ADDR_EXT=$1
+
+## figure out who actually sent the message
+SENDER=| formail -rtz -xTo:
+
+:0 c
+backup
+
+:0 ic
+| cd backup && rm -f dummy $( ls -t msg.* | sed -e 1,100d )
+
+## dispatch message to post-by-email service
+:0 wf
+| /usr/bin/curl \
+    -s -f \
+    --max-time 180 \
+    -H 'Content-Type: message/rfc822' \
+    --data-binary @- \
+    localhost:5000/email/$SENDER/$ADDR_EXT
+
+:0 he
+* !^FROM_DAEMON
+* !^X-Loop: photos@alpha.beta5.org
+| (formail -k -r -A"X-Loop: photos@alpha.beta5.org" ; echo "delivery bounced: $result") | $SENDMAIL -oi -t
+
+:0
+/dev/null
