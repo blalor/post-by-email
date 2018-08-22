@@ -9,5 +9,6 @@ def main():
     git = Git(config.GIT_REPO, config.GIT_WORKING_COPY)
     git.clone()
 
+
 if __name__ == "__main__":
     main()

@@ -42,12 +42,12 @@ signer = itsdangerous.Signer(config.ADDR_VALIDATION_HMAC_KEY, sep="^", digest_me
 @app.route("/email/<sender>/<addr_hash>", methods=["POST"])
 def upload_email(sender, addr_hash):
     logger.info("processing request from %s with hash %s", sender, addr_hash)
-    
+
     if not signer.validate("^".join([sender, addr_hash])):
         logger.warn("invalid hash from %s", sender)
-        
+
         return "invalid hash", 403, {"Content-Type": "text/plain; charset=utf-8"}
-    
+
     post_path = mail_handler.process_stream(request.stream)
 
     logger.info("successfully created %s", post_path)

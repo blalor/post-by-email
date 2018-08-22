@@ -34,7 +34,7 @@ class Git(object):
                 "GIT_TEMPLATE_DIR": "",
             },
         )
-    
+
     @contextmanager
     def lock(self):
         with file_lock(self._lock_file):
@@ -70,14 +70,14 @@ class Git(object):
 
     def commit(self, author_name, author_email, date, message):
         logger.info("committing")
-        
+
         # @todo ensure there are actual changes to be made
         
         ## write commit message to temp file
         with tempfile.TemporaryFile() as tf:
             tf.write(message.encode("utf-8"))
             tf.seek(0)
-            
+
             subprocess.check_call(
                 [
                     "git", "commit",
@@ -90,16 +90,16 @@ class Git(object):
                     "GIT_AUTHOR_NAME":     author_name,
                     "GIT_AUTHOR_EMAIL":    author_email,
                     "GIT_AUTHOR_DATE":     date,
-                    
+
                     ## adding delivered-to exposes the email address used to create posts!
                     # "GIT_COMMITTER_NAME":  config.GIT_COMMITTER_NAME,
                     # "GIT_COMMITTER_EMAIL": msg["delivered-to"],
                 },
             )
-    
+
     def push(self):
         logger.info("pushing")
-        
+
         subprocess.check_call(
             [
                 "git", "push", "--quiet"
