@@ -1,13 +1,15 @@
 # -*- encoding: utf-8 -*-
 
-import logging
-logger = logging.getLogger(__name__)
-
 import os
-import subprocess
-import tempfile
 from file_lock import file_lock
 from contextlib import contextmanager
+from dulwich import porcelain
+from dulwich.repo import Repo
+from time_util import parse_date
+from datetime import datetime
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class Git(object):
@@ -18,21 +20,16 @@ class Git(object):
         self.repo_path = repo_path
         self._lock_file = os.path.join(self.repo_path, ".git", "render_post.lock")
 
+        ## dulwich repo instance
+        self._repo = None
+        if os.path.exists(os.path.join(self.repo_path, ".git")):
+            self._repo = Repo(self.repo_path)
+
     def clone(self):
         logger.info("cloning")
-        
-        subprocess.check_call(
-            [
-                "git", "clone",
-                "--depth", "1",
-                "--quiet",
-                self.repo_url,
-                self.repo_path,
-            ],
-            env={
-                ## disable template; my pre-commit hook checks for user.{email,name}
-                "GIT_TEMPLATE_DIR": "",
-            },
+        self._repo = porcelain.clone(
+            self.repo_url,
+            target=self.repo_path,
         )
 
     @contextmanager
@@ -43,66 +40,46 @@ class Git(object):
 
     def clean_sweep(self):
         logger.info("cleaning")
-        
-        subprocess.check_call(["git", "fetch"], cwd=self.repo_path)
-        subprocess.check_call(
-            [
-                "git", "reset",
-                "--quiet",
-                "--hard", "origin/master",
-            ],
-            cwd=self.repo_path,
-        )
-        
+
         ## make it squeaky clean
-        subprocess.check_call(
-            ["git", "clean", "-f", "-d", "-x"],
-            cwd=self.repo_path,
-        )
+        index = self._repo.open_index()
+        for untracked in porcelain.get_untracked_paths(self._repo.path, self._repo.path, index):
+            os.unlink(os.path.join(self._repo.path, untracked))
+
+        porcelain.reset(self._repo.path, "hard", treeish="HEAD")
+        porcelain.pull(self._repo.path, remote_location=self.repo_url)
 
     def add_file(self, path):
         logger.info("adding %s", path)
-        
-        subprocess.check_call(
-            ["git", "add", path],
-            cwd=self.repo_path,
-        )
+
+        porcelain.add(self._repo.path, path)
 
     def commit(self, author_name, author_email, date, message):
         logger.info("committing")
 
         # @todo ensure there are actual changes to be made
-        
-        ## write commit message to temp file
-        with tempfile.TemporaryFile() as tf:
-            tf.write(message.encode("utf-8"))
-            tf.seek(0)
 
-            subprocess.check_call(
-                [
-                    "git", "commit",
-                    "--file=-",
-                    "--quiet",
-                ],
-                stdin=tf,
-                cwd=self.repo_path,
-                env={
-                    "GIT_AUTHOR_NAME":     author_name,
-                    "GIT_AUTHOR_EMAIL":    author_email,
-                    "GIT_AUTHOR_DATE":     date,
+        ## https://stackoverflow.com/a/8778548/53051
+        dt = parse_date(date)
+        utc_naive  = dt.replace(tzinfo=None) - dt.utcoffset()
+        author_timestamp = (utc_naive - datetime(1970, 1, 1)).total_seconds()
+        author_timezone = dt.utcoffset().total_seconds()
 
-                    ## adding delivered-to exposes the email address used to create posts!
-                    # "GIT_COMMITTER_NAME":  config.GIT_COMMITTER_NAME,
-                    # "GIT_COMMITTER_EMAIL": msg["delivered-to"],
-                },
+        try:
+            self._repo.do_commit(
+                message=message.encode("utf-8"),
+                author=("%s <%s>" % (author_name, author_email)).encode("utf-8"),
+                author_timestamp=author_timestamp,
+                author_timezone=author_timezone,
+                committer="Nobody <nobody@post-by-email>",
+                encoding="utf-8",
             )
+        finally:
+            self._repo.close()
 
     def push(self):
         logger.info("pushing")
 
-        subprocess.check_call(
-            [
-                "git", "push", "--quiet"
-            ],
-            cwd=self.repo_path,
-        )
+        current_branch = self._repo.refs.follow(b"HEAD")[0][1]
+        ## self._repo.path, not self._repo
+        porcelain.push(self._repo.path, self.repo_url, current_branch)
