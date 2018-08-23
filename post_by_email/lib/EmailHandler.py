@@ -34,12 +34,12 @@ class EmailHandler(object):
 
     SIG_DELIMITER = re.compile(r"""^(--\s*|Sent from my iPhone)$""", re.IGNORECASE)
 
-    def __init__(self, s3, s3_prefix, geocoder, git, commit_changes=False):
+    def __init__(self, s3_bucket, s3_prefix, geocoder, git, commit_changes=False):
         super(EmailHandler, self).__init__()
 
         self.logger = logging.getLogger(self.__class__.__name__)
 
-        self.s3 = s3
+        self.s3_bucket = s3_bucket
         self.s3_prefix = s3_prefix
         self.geocoder = geocoder
         self.git = git
@@ -50,7 +50,7 @@ class EmailHandler(object):
         s3_obj_name = os.path.join(self.s3_prefix, slug, photo.get_filename())
 
         ## abort if image already exists
-        if [k for k in self.s3.list(s3_obj_name)]:
+        if [k for k in self.s3_bucket.objects.filter(Prefix=s3_obj_name)]:
             raise ImageExistsException(s3_obj_name)
 
         img_info["path"] = s3_obj_name
@@ -75,12 +75,10 @@ class EmailHandler(object):
         ## upload image to s3
         self.logger.debug("uploading to S3: %s", s3_obj_name)
 
-        self.s3.upload(
-            s3_obj_name,
-            photo_io,
-            content_type="image/jpeg",  # @todo
-            close=True,  # close file afterwards
-            rewind=True,  # defaults to True, but just in case…
+        self.s3_bucket.put_object(
+            Key=s3_obj_name,
+            Body=photo_io,
+            ContentType="image/jpeg",  # @todo
         )
 
         self.logger.info("uploaded %s to S3", s3_obj_name)

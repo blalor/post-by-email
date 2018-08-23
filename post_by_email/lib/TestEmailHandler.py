@@ -41,7 +41,7 @@ class TestEmailHandler:
         self.git_repo_dir = tempfile.mkdtemp()
 
         ## mock of tinys3.Connection
-        self.mock_s3 = mock.Mock()
+        self.mock_s3_bucket = mock.Mock()
 
         ## mock of geopy.geocoders.OpenCage
         self.mock_geocoder = mock.Mock()
@@ -51,19 +51,19 @@ class TestEmailHandler:
         self.mock_git.repo_path = self.git_repo_dir
         self.mock_git.lock = mock.MagicMock()
 
-        self.handler = EmailHandler(self.mock_s3, "img/email", self.mock_geocoder, self.mock_git, commit_changes=True)
+        self.handler = EmailHandler(self.mock_s3_bucket, "img/email", self.mock_geocoder, self.mock_git, commit_changes=True)
 
     def teardown(self):
         shutil.rmtree(self.git_repo_dir)
 
     def test_parseMessage(self):
-        self.mock_s3.list.return_value = []
+        self.mock_s3_bucket.objects.filter.return_value = []
 
         lat, lon = 42.347011111111115, -71.09632222222221
         location = geopy.location.Location("the park", geopy.location.Point(lat, lon, 0))
         self.mock_geocoder.reverse.return_value = location
 
-        self.mock_s3.upload.return_value = None
+        self.mock_s3_bucket.put_object.return_value = None
 
         with gzip.open(os.path.join(self.FIXTURE_DIR, "photo-1.msg.gz"), "r") as ifp:
             post_path = self.handler.process_stream(ifp)
@@ -71,9 +71,9 @@ class TestEmailHandler:
         eq_(post_path, "2015-07-05-fenway-fireworks.md")
         post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
 
-        self.mock_s3.list.assert_called_once_with("img/email/2015-07-05-fenway-fireworks/IMG_5810.JPG")
-        eq_(self.mock_s3.upload.call_args[0][0], "img/email/2015-07-05-fenway-fireworks/IMG_5810.JPG")
-        eq_(self.mock_s3.upload.call_args[1]["content_type"], "image/jpeg")
+        self.mock_s3_bucket.objects.filter.assert_called_once_with(Prefix="img/email/2015-07-05-fenway-fireworks/IMG_5810.JPG")
+        eq_(self.mock_s3_bucket.put_object.call_args[1]["Key"], "img/email/2015-07-05-fenway-fireworks/IMG_5810.JPG")
+        eq_(self.mock_s3_bucket.put_object.call_args[1]["ContentType"], "image/jpeg")
 
         self.mock_git.clean_sweep.assert_called_once_with()
         self.mock_git.add_file.assert_called_once_with(post_fn)
@@ -131,7 +131,7 @@ class TestEmailHandler:
         eq_(post_path, "2015-07-13-just-some-text.md")
         post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
 
-        ok_(not self.mock_s3.list.called)
+        ok_(not self.mock_s3_bucket.objects.filter.called)
         ok_(not self.mock_geocoder.reverse.called)
 
         frontmatter, body = parse_post(post_fn)
@@ -226,9 +226,9 @@ some text ramble ramble bla bla bla
         ok_("baz bap" in frontmatter["tags"])
 
     def test_extractsGPSTimestamp(self):
-        self.mock_s3.list.return_value = []
+        self.mock_s3_bucket.objects.filter.return_value = []
         self.mock_geocoder.reverse.return_value = None
-        self.mock_s3.upload.return_value = None
+        self.mock_s3_bucket.upload.return_value = None
 
         with gzip.open(os.path.join(self.FIXTURE_DIR, "photo-1.msg.gz"), "r") as ifp:
             post_path = self.handler.process_stream(ifp)

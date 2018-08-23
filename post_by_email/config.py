@@ -21,9 +21,6 @@ GIT_COMMITTER_NAME = os.environ.get("GIT_COMMITTER_NAME", "post by email")
 S3_IMAGE_BUCKET = os.environ["S3_IMAGE_BUCKET"]
 S3_IMAGE_PATH_PREFIX = os.environ["S3_IMAGE_PATH_PREFIX"]
 
-AWS_ACCESS_KEY_ID = os.environ["AWS_ACCESS_KEY_ID"]
-AWS_SECRET_ACCESS_KEY = os.environ["AWS_SECRET_ACCESS_KEY"]
-
 ## reverse geocoding service
 ## http://geocoder.opencagedata.com/demo.html
 OPENCAGE_API_KEY = os.environ["OPENCAGE_API_KEY"]
