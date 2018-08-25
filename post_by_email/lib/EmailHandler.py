@@ -34,7 +34,7 @@ class EmailHandler(object):
 
     SIG_DELIMITER = re.compile(r"""^(--\s*|Sent from my iPhone)$""", re.IGNORECASE)
 
-    def __init__(self, s3_bucket, s3_prefix, geocoder, git, commit_changes=False):
+    def __init__(self, s3_bucket, s3_prefix, geocoder, git, commit_changes=False, jekyll_prefix=""):
         super(EmailHandler, self).__init__()
 
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -44,6 +44,7 @@ class EmailHandler(object):
         self.geocoder = geocoder
         self.git = git
         self.commit_changes = commit_changes
+        self.jekyll_prefix = jekyll_prefix
 
     def __process_image(self, slug, photo):
         img_info = OrderedDict()
@@ -124,7 +125,13 @@ class EmailHandler(object):
         )
 
         post_rel_fn = slug + ".md"
-        post_full_fn = os.path.join(self.git.repo_path, "_posts", "blog", post_rel_fn)
+        post_full_fn = os.path.join(
+            self.git.repo_path,
+            self.jekyll_prefix,
+            "_posts",
+            "blog",
+            post_rel_fn,
+        )
 
         if os.path.exists(post_full_fn):
             raise PostExistsException(post_rel_fn)
