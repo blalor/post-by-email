@@ -2,18 +2,22 @@
 
 import os
 
+## the domain that emails are being sent to
+RECEIVING_DOMAIN = os.environ["RECEIVING_DOMAIN"].lower()
+
+EXTENSION_DELIMITER = os.environ.get("EXTENSION_DELIMITER", "+")
+
 COMMIT_CHANGES = os.environ.get("COMMIT_CHANGES", "False").lower() == "true"
 
 ## tr -dc A-Za-z0-9 < /dev/urandom | head -c 40
 ADDR_VALIDATION_HMAC_KEY = os.environ["ADDR_VALIDATION_HMAC_KEY"]
 
-## where the jekyll site source lives, if not in the root of the repo
-JEKYLL_PREFIX = os.environ.get("JEKYLL_PREFIX", "")
-
 ## like "https://<token>:x-oauth-basic@github.com/<owner>/<repo>.git"
 ## yeah, includes the auth; should make it fairly simple, if a bit cumbersome…
 GIT_REPO = os.environ["GIT_REPO"]
-GIT_WORKING_COPY = os.environ["GIT_WORKING_COPY"]
+
+## where the jekyll site source lives, if not in the root of the repo
+JEKYLL_PREFIX = os.environ.get("JEKYLL_PREFIX", "")
 
 GIT_COMMITTER_NAME = os.environ.get("GIT_COMMITTER_NAME", "post by email")
 

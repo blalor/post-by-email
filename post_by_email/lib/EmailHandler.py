@@ -10,8 +10,8 @@ import re
 from slugify import slugify
 import rtyaml as yaml
 
-from lib.time_util import parse_date, UTC
-import lib.exif_renderer as exif_renderer
+from time_util import parse_date, UTC
+import exif_renderer
 from collections import OrderedDict
 
 
