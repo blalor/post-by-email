@@ -3,6 +3,9 @@
 
 ## https://docs.aws.amazon.com/ses/latest/DeveloperGuide/receiving-email-notifications-examples.html
 
+# https://github.com/airbnb/streamalert/pull/623/commits/02533c42136326117578d4857a2c6a8659306359
+from __future__ import absolute_import
+
 import json
 import logging
 import tempfile
@@ -12,9 +15,10 @@ import itsdangerous
 import hashlib
 import geopy
 
-import config
-from lib.EmailHandler import EmailHandler, PostExistsException
-from lib.git import Git
+## this module is not on the path, so imports must be relative
+from . import config
+from .lib.EmailHandler import EmailHandler, PostExistsException
+from .lib.git import Git
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -43,7 +47,8 @@ def lambda_handler(event, context):
         action = message["receipt"]["action"]
         assert action["type"] == "S3"
 
-        sender = message["mail"]["commonHeaders"]["from"][0]
+        # sender = message["mail"]["source"]["from"][0]  ## contains name <addr>
+        sender = message["mail"]["source"]
         sender_validated = False
         for recipient in message["receipt"]["recipients"]:
             recip, domain = recipient.split("@", 1)
