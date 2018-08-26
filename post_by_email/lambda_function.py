@@ -77,7 +77,8 @@ def lambda_handler(event, context):
                 config.S3_IMAGE_PATH_PREFIX,
                 geocoder,
                 git,
-                config.COMMIT_CHANGES,
+                commit_changes=config.COMMIT_CHANGES,
+                jekyll_prefix=config.JEKYLL_PREFIX,
             )
 
             do_remove_object = False
