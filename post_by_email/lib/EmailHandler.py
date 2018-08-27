@@ -49,7 +49,7 @@ class EmailHandler(object):
     def __process_image(self, slug, photo):
         img_info = OrderedDict()
 
-        img_path = os.path.join("email", "slug", photo.get_filename())
+        img_path = os.path.join("email", slug, photo.get_filename())
         s3_obj_name = os.path.join(self.s3_prefix, img_path)
 
         ## abort if image already exists
