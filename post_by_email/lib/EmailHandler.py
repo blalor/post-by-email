@@ -48,13 +48,15 @@ class EmailHandler(object):
 
     def __process_image(self, slug, photo):
         img_info = OrderedDict()
-        s3_obj_name = os.path.join(self.s3_prefix, slug, photo.get_filename())
+
+        img_path = os.path.join("email", "slug", photo.get_filename())
+        s3_obj_name = os.path.join(self.s3_prefix, img_path)
 
         ## abort if image already exists
         if [k for k in self.s3_bucket.objects.filter(Prefix=s3_obj_name)]:
             raise ImageExistsException(s3_obj_name)
 
-        img_info["path"] = s3_obj_name
+        img_info["path"] = img_path
 
         self.logger.debug("processing %s", s3_obj_name)
 
