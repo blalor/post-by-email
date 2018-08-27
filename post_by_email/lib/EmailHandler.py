@@ -76,6 +76,9 @@ class EmailHandler(object):
         ## upload image to s3
         self.logger.debug("uploading to S3: %s", s3_obj_name)
 
+        ## seek to the beginning of the file, so the entire thing is uploaded.
+        ## exif_renderer seeks into the stream.
+        photo_io.seek(0)
         self.s3_bucket.put_object(
             Key=s3_obj_name,
             Body=photo_io,
