@@ -65,13 +65,42 @@ class EmailHandler(object):
 
         ## get image location name with opencagedata
         loc = self.geocoder.reverse(
-            [img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]],
+            (img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]),
             exactly_one=True,
         )
 
         if loc:
             ## @todo set image timezone from location?
-            img_info["exif"]["location"]["name"] = loc.address
+            oc = loc.raw
+            components = oc["components"]
+
+            # _type=road, road=Skyline Drive
+            # _type=bar, bar=Bleacher Bar
+            detail = None
+            _type = components.get("_type")
+            if _type:
+                detail = components.get(_type)
+
+            locality_keys = ("city", "village", "hamlet", "locality", "town")
+            locality = [v for k, v in components.items() if k in locality_keys]
+            if locality:
+                locality = locality[0]
+            else:
+                locality = components.get("county")
+                if not locality:
+                    locality = r"¯\_(ツ)_/¯"
+
+            state = components.get("state_code")
+            if not state:
+                state = components.get("state")
+
+            flag = oc.get("annotations", {}).get("flag", u"❓")
+
+            img_info["exif"]["location"]["name"] = u"%s %s" % (
+                u", ".join([x for x in (detail, locality, state) if x]),
+                flag,
+            )
+
         else:
             self.logger.warn("no reverse geocoding result found for %r", (img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]))
 
