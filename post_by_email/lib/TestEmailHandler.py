@@ -51,7 +51,7 @@ class TestEmailHandler:
         self.mock_git.repo_path = self.git_repo_dir
         self.mock_git.lock = mock.MagicMock()
 
-        self.handler = EmailHandler(self.mock_s3_bucket, "img/email", self.mock_geocoder, self.mock_git, commit_changes=True)
+        self.handler = EmailHandler(self.mock_s3_bucket, "img", self.mock_geocoder, self.mock_git, commit_changes=True)
 
     def teardown(self):
         shutil.rmtree(self.git_repo_dir)
@@ -60,7 +60,70 @@ class TestEmailHandler:
         self.mock_s3_bucket.objects.filter.return_value = []
 
         lat, lon = 42.347011111111115, -71.09632222222221
-        location = geopy.location.Location("the park", geopy.location.Point(lat, lon, 0))
+        location = geopy.location.Location(
+            "the park",
+            point=geopy.location.Point(lat, lon, 0),
+            raw={
+                u'annotations': {u'DMS': {u'lat': u"42\xb0 20' 49.39584'' N",
+                                          u'lng': u"71\xb0 5' 47.26752'' W"},
+                                 u'FIPS': {u'county': u'25025', u'state': u'25'},
+                                 u'MGRS': u'19TCG2731890439',
+                                 u'Maidenhead': u'FN42ki83kh',
+                                 u'Mercator': {u'x': -7914422.081, u'y': 5184317.945},
+                                 u'OSM': {u'edit_url': u'https://www.openstreetmap.org/edit?node=1712242950#map=17/42.34705/-71.09646',
+                                          u'url': u'https://www.openstreetmap.org/?mlat=42.34705&mlon=-71.09646#map=17/42.34705/-71.09646'},
+                                 u'callingcode': 1,
+                                 u'currency': {u'alternate_symbols': [u'US$'],
+                                               u'decimal_mark': u'.',
+                                               u'disambiguate_symbol': u'US$',
+                                               u'html_entity': u'$',
+                                               u'iso_code': u'USD',
+                                               u'iso_numeric': 840,
+                                               u'name': u'United States Dollar',
+                                               u'smallest_denomination': 1,
+                                               u'subunit': u'Cent',
+                                               u'subunit_to_unit': 100,
+                                               u'symbol': u'$',
+                                               u'symbol_first': 1,
+                                               u'thousands_separator': u','},
+                                 u'flag': u'\U0001f1fa\U0001f1f8',
+                                 u'geohash': u'drt2yjj1kr4ej6jr10s8',
+                                 u'qibla': 60.4,
+                                 u'sun': {u'rise': {u'apparent': 1536055980,
+                                                    u'astronomical': 1536050040,
+                                                    u'civil': 1536054240,
+                                                    u'nautical': 1536052200},
+                                          u'set': {u'apparent': 1536102660,
+                                                   u'astronomical': 1536022140,
+                                                   u'civil': 1536104400,
+                                                   u'nautical': 1536020040}},
+                                 u'timezone': {u'name': u'America/New_York',
+                                               u'now_in_dst': 1,
+                                               u'offset_sec': -14400,
+                                               u'offset_string': -400,
+                                               u'short_name': u'EDT'},
+                                 u'what3words': {u'words': u'tour.humans.sport'}},
+                u'bounds': {u'northeast': {u'lat': 42.3471544, u'lng': -71.0963632},
+                            u'southwest': {u'lat': 42.3469544, u'lng': -71.0965632}},
+                u'components': {u'ISO_3166-1_alpha-2': u'US',
+                                u'_type': u'bar',
+                                u'bar': u'Bleacher Bar',
+                                u'city': u'Boston',
+                                u'country': u'USA',
+                                u'country_code': u'us',
+                                u'county': u'Suffolk County',
+                                u'house_number': u'82A',
+                                u'neighbourhood': u'Roxbury Crossing',
+                                u'postcode': u'02114',
+                                u'road': u'Lansdowne Street',
+                                u'state': u'Massachusetts',
+                                u'state_code': u'MA',
+                                u'suburb': u'Fenway'},
+                u'confidence': 9,
+                u'formatted': u'Bleacher Bar, 82A Lansdowne Street, Boston, MA 02114, United States of America',
+                u'geometry': {u'lat': 42.3470544, u'lng': -71.0964632}
+            }
+        )
         self.mock_geocoder.reverse.return_value = location
 
         self.mock_s3_bucket.put_object.return_value = None
@@ -81,7 +144,7 @@ class TestEmailHandler:
         self.mock_git.push.called_once_with()
 
         ## bet those float comparisons will bite me later!
-        self.mock_geocoder.reverse.assert_called_once_with([lat, lon], exactly_one=True)
+        self.mock_geocoder.reverse.assert_called_once_with((lat, lon), exactly_one=True)
 
         frontmatter, body = parse_post(post_fn)
         # {'author': 'blalor@bravo5.org',
@@ -99,7 +162,7 @@ class TestEmailHandler:
         img = frontmatter["images"][0]
         eq_(img["exif"]["location"]["latitude"], lat)
         eq_(img["exif"]["location"]["longitude"], lon)
-        eq_(img["exif"]["location"]["name"], location.address)
+        eq_(img["exif"]["location"]["name"], u"Bleacher Bar, Boston, MA 🇺🇸")
 
     def test_parseMessagePreservingEmoji(self):
         msg = MIMEText(u"""Foo 👍🔫""".encode("utf-8"), "plain", "UTF-8")
