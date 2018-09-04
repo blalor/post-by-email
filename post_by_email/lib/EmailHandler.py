@@ -194,14 +194,24 @@ class EmailHandler(object):
             fm["tags"].extend([t.strip() for t in body_lines[0][5:].strip().split(",")])
             del body_lines[0]
 
-        ## recreate body
-        body = u"\n".join(body_lines)
+        image_includes = []
 
         if "image/jpeg" in msg_parts:
             fm["tags"].append("photo")
-            fm["images"] = []
+            fm["images"] = {}
             for photo in msg_parts["image/jpeg"]:
-                fm["images"].append(self.__process_image(slug, photo))
+                img_info = self.__process_image(slug, photo)
+                img_slug = slugify(os.path.basename(img_info["path"]), separator="_")
+
+                fm["images"][img_slug] = img_info
+
+                image_includes.append("{%% include exif-image.html img=page.images.%s %%}" % img_slug)
+
+        ## recreate body
+        if image_includes:
+            image_includes.append("")
+
+        body = u"\n".join(image_includes + body_lines)
 
         self.logger.debug("generating %s", post_full_fn)
 
@@ -225,7 +235,7 @@ class EmailHandler(object):
                 ## hack for title which the yaml generator won't do properly
                 ofp.write('title: "%s"\n' % fm["title"])
                 del fm["title"]
-                yaml.dump(frontmatter, ofp)
+                yaml.dump(fm, ofp)
 
                 ## we want an space between the frontmatter and the body
                 ofp.write("---\n\n")

@@ -150,7 +150,7 @@ class TestEmailHandler:
         # {'author': 'blalor@bravo5.org',
         #  'categories': 'blog',
         #  'date': '2015-07-05T07:28:43-04:00',
-        #  'images': [OrderedDict([('path', 'img/email/2015-07-05-fenway-fireworks/IMG_5810.JPG'), ('exif', OrderedDict([('cameraMake', 'Apple'), ('cameraModel', 'iPhone 6'), ('cameraSWVer', '8.4'), ('dateTimeOriginal', '2015-07-03T23:39:33'), ('lensModel', 'iPhone 6 back camera 4.15mm f/2.2'), ('location', OrderedDict([('latitude', 42.347011111111115), ('longitude', -71.09632222222221)]))]))])],
+        #  'images': {'img_5810_jpg': OrderedDict([('path', 'img/email/2015-07-05-fenway-fireworks/IMG_5810.JPG'), ('exif', OrderedDict([('cameraMake', 'Apple'), ('cameraModel', 'iPhone 6'), ('cameraSWVer', '8.4'), ('dateTimeOriginal', '2015-07-03T23:39:33'), ('lensModel', 'iPhone 6 back camera 4.15mm f/2.2'), ('location', OrderedDict([('latitude', 42.347011111111115), ('longitude', -71.09632222222221)]))]))])},
         #  'layout': 'post',
         #  'tags': ['photo'],
         #  'title': 'Fenway fireworks'}
@@ -159,10 +159,12 @@ class TestEmailHandler:
         ok_("photo" in frontmatter["tags"])
 
         eq_(len(frontmatter["images"]), 1)
-        img = frontmatter["images"][0]
+        img = frontmatter["images"]["img_5810_jpg"]
         eq_(img["exif"]["location"]["latitude"], lat)
         eq_(img["exif"]["location"]["longitude"], lon)
         eq_(img["exif"]["location"]["name"], u"Bleacher Bar, Boston, MA 🇺🇸")
+
+        ok_(r"{% include exif-image.html img=page.images.img_5810_jpg %}" in body)
 
     def test_parseMessagePreservingEmoji(self):
         msg = MIMEText(u"""Foo 👍🔫""".encode("utf-8"), "plain", "UTF-8")
@@ -197,7 +199,7 @@ class TestEmailHandler:
         ok_(not self.mock_s3_bucket.objects.filter.called)
         ok_(not self.mock_geocoder.reverse.called)
 
-        frontmatter, body = parse_post(post_fn)
+        frontmatter, _ = parse_post(post_fn)
         # {'author': 'blalor@bravo5.org',
         #  'categories': 'blog',
         #  'date': '2015-07-05T07:28:43-04:00',
@@ -284,7 +286,7 @@ some text ramble ramble bla bla bla
 
         post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", self.handler.process_message(msg))
 
-        frontmatter, body = parse_post(post_fn)
+        frontmatter, _ = parse_post(post_fn)
         ok_("foo" in frontmatter["tags"])
         ok_("baz bap" in frontmatter["tags"])
 
@@ -302,11 +304,13 @@ some text ramble ramble bla bla bla
         # {'author': 'blalor@bravo5.org',
         #  'categories': 'blog',
         #  'date': '2015-07-05T07:28:43-04:00',
-        #  'images': [OrderedDict([('path', 'img/email/2015-07-05-fenway-fireworks/IMG_5810.JPG'), ('exif', OrderedDict([('cameraMake', 'Apple'), ('cameraModel', 'iPhone 6'), ('cameraSWVer', '8.4'), ('dateTimeOriginal', '2015-07-03T23:39:33'), ('lensModel', 'iPhone 6 back camera 4.15mm f/2.2'), ('location', OrderedDict([('latitude', 42.347011111111115), ('longitude', -71.09632222222221)]))]))])],
+        #  'images': {'img_5810_jpg': OrderedDict([('path', 'img/email/2015-07-05-fenway-fireworks/IMG_5810.JPG'), ('exif', OrderedDict([('cameraMake', 'Apple'), ('cameraModel', 'iPhone 6'), ('cameraSWVer', '8.4'), ('dateTimeOriginal', '2015-07-03T23:39:33'), ('lensModel', 'iPhone 6 back camera 4.15mm f/2.2'), ('location', OrderedDict([('latitude', 42.347011111111115), ('longitude', -71.09632222222221)]))]))])},
         #  'layout': 'post',
         #  'tags': ['photo'],
         #  'title': 'Fenway fireworks'}
         eq_(len(frontmatter["images"]), 1)
-        img = frontmatter["images"][0]
+        img = frontmatter["images"]["img_5810_jpg"]
         eq_(img["exif"]["dateTimeOriginal"], "2015-07-03T23:39:33")
         eq_(img["exif"]["dateTimeGps"],      "2015-07-04T03:39:33+00:00")
+
+        ok_(r"{% include exif-image.html img=page.images.img_5810_jpg %}" in body)
