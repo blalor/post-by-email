@@ -63,46 +63,47 @@ class EmailHandler(object):
         photo_io = StringIO.StringIO(photo.get_payload(decode=True))
         img_info["exif"] = exif_renderer.render_stream(photo_io)
 
-        ## get image location name with opencagedata
-        loc = self.geocoder.reverse(
-            (img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]),
-            exactly_one=True,
-        )
-
-        if loc:
-            ## @todo set image timezone from location?
-            oc = loc.raw
-            components = oc["components"]
-
-            # _type=road, road=Skyline Drive
-            # _type=bar, bar=Bleacher Bar
-            detail = None
-            _type = components.get("_type")
-            if _type:
-                detail = components.get(_type)
-
-            locality_keys = ("city", "village", "hamlet", "locality", "town")
-            locality = [v for k, v in components.items() if k in locality_keys]
-            if locality:
-                locality = locality[0]
-            else:
-                locality = components.get("county")
-                if not locality:
-                    locality = r"¯\_(ツ)_/¯"
-
-            state = components.get("state_code")
-            if not state:
-                state = components.get("state")
-
-            flag = oc.get("annotations", {}).get("flag", u"❓")
-
-            img_info["exif"]["location"]["name"] = u"%s %s" % (
-                u", ".join([x for x in (detail, locality, state) if x]),
-                flag,
+        if "location" in img_info["exif"]:
+            ## get image location name with opencagedata
+            loc = self.geocoder.reverse(
+                (img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]),
+                exactly_one=True,
             )
 
-        else:
-            self.logger.warn("no reverse geocoding result found for %r", (img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]))
+            if loc:
+                ## @todo set image timezone from location?
+                oc = loc.raw
+                components = oc["components"]
+
+                # _type=road, road=Skyline Drive
+                # _type=bar, bar=Bleacher Bar
+                detail = None
+                _type = components.get("_type")
+                if _type:
+                    detail = components.get(_type)
+
+                locality_keys = ("city", "village", "hamlet", "locality", "town")
+                locality = [v for k, v in components.items() if k in locality_keys]
+                if locality:
+                    locality = locality[0]
+                else:
+                    locality = components.get("county")
+                    if not locality:
+                        locality = r"¯\_(ツ)_/¯"
+
+                state = components.get("state_code")
+                if not state:
+                    state = components.get("state")
+
+                flag = oc.get("annotations", {}).get("flag", u"❓")
+
+                img_info["exif"]["location"]["name"] = u"%s %s" % (
+                    u", ".join([x for x in (detail, locality, state) if x]),
+                    flag,
+                )
+
+            else:
+                self.logger.warn("no reverse geocoding result found for %r", (img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]))
 
         ## upload image to s3
         self.logger.debug("uploading to S3: %s", s3_obj_name)
