@@ -1,43 +1,42 @@
 # -*- encoding: utf-8 -*-
 
-from EmailHandler import EmailHandler
+from post_by_email.lib.EmailHandler import EmailHandler
 
-from nose.tools import eq_, ok_
 import mock
 import os
 import shutil
 import tempfile
 import gzip
 import rtyaml as yaml
-import StringIO
+import io
 import geopy
 from email.mime.text import MIMEText
 from email.utils import formatdate
 
 
 def parse_post(fn):
-    buf = StringIO.StringIO()
+    buf = io.StringIO()
 
-    with open(fn, "r") as ifp:
+    with open(fn, "r", encoding="utf-8") as ifp:
         ## must start with ---\n
-        line = ifp.readline().decode("utf-8")
-        eq_(line, u"---\n")
+        line = ifp.readline()
+        assert line == u"---\n"
 
         while True:
-            line = ifp.readline().decode("utf-8")
+            line = ifp.readline()
             if line == u"---\n":
                 break
 
             buf.write(line)
 
         buf.seek(0)
-        return yaml.load(buf), ifp.read().decode("utf-8")
+        return yaml.load(buf), ifp.read()
 
 
 class TestEmailHandler:
     FIXTURE_DIR = os.path.abspath(os.path.join(__file__, "../../test-fixtures"))
 
-    def setup(self):
+    def setup_method(self):
         self.git_repo_dir = tempfile.mkdtemp()
 
         ## mock of tinys3.Connection
@@ -53,7 +52,7 @@ class TestEmailHandler:
 
         self.handler = EmailHandler(self.mock_s3_bucket, "img", self.mock_geocoder, self.mock_git, commit_changes=True)
 
-    def teardown(self):
+    def teardown_method(self):
         shutil.rmtree(self.git_repo_dir)
 
     def test_parseMessage(self):
@@ -128,15 +127,15 @@ class TestEmailHandler:
 
         self.mock_s3_bucket.put_object.return_value = None
 
-        with gzip.open(os.path.join(self.FIXTURE_DIR, "photo-1.msg.gz"), "r") as ifp:
+        with gzip.open(os.path.join(self.FIXTURE_DIR, "photo-1.msg.gz"), "rt", encoding="utf-8") as ifp:
             post_path = self.handler.process_stream(ifp)
 
-        eq_(post_path, "2015-07-05-fenway-fireworks.md")
+        assert post_path == "2015-07-05-fenway-fireworks.md"
         post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
 
         self.mock_s3_bucket.objects.filter.assert_called_once_with(Prefix="img/email/2015-07-05-fenway-fireworks/IMG_5810.JPG")
-        eq_(self.mock_s3_bucket.put_object.call_args[1]["Key"], "img/email/2015-07-05-fenway-fireworks/IMG_5810.JPG")
-        eq_(self.mock_s3_bucket.put_object.call_args[1]["ContentType"], "image/jpeg")
+        assert self.mock_s3_bucket.put_object.call_args[1]["Key"] == "img/email/2015-07-05-fenway-fireworks/IMG_5810.JPG"
+        assert self.mock_s3_bucket.put_object.call_args[1]["ContentType"] == "image/jpeg"
 
         self.mock_git.clean_sweep.assert_called_once_with()
         self.mock_git.add_file.assert_called_once_with(post_fn)
@@ -154,17 +153,17 @@ class TestEmailHandler:
         #  'layout': 'post',
         #  'tags': ['photo'],
         #  'title': 'Fenway fireworks'}
-        eq_(frontmatter["author"], "blalor@bravo5.org")
-        eq_(frontmatter["categories"], "blog")
-        ok_("photo" in frontmatter["tags"])
+        assert frontmatter["author"] == "blalor@bravo5.org"
+        assert frontmatter["categories"] == "blog"
+        assert "photo" in frontmatter["tags"]
 
-        eq_(len(frontmatter["images"]), 1)
+        assert len(frontmatter["images"]) == 1
         img = frontmatter["images"]["img_5810_jpg"]
-        eq_(img["exif"]["location"]["latitude"], lat)
-        eq_(img["exif"]["location"]["longitude"], lon)
-        eq_(img["exif"]["location"]["name"], u"Bleacher Bar, Boston, MA 🇺🇸")
+        assert img["exif"]["location"]["latitude"] == lat
+        assert img["exif"]["location"]["longitude"] == lon
+        assert img["exif"]["location"]["name"] == u"Bleacher Bar, Boston, MA 🇺🇸"
 
-        ok_(r"{% include exif-image.html img=page.images.img_5810_jpg %}" in body)
+        assert r"{% include exif-image.html img=page.images.img_5810_jpg %}" in body
 
     def test_parseMessagePreservingEmoji(self):
         msg = MIMEText(u"""Foo 👍🔫""".encode("utf-8"), "plain", "UTF-8")
@@ -177,11 +176,11 @@ class TestEmailHandler:
 
         post_path = self.handler.process_message(msg)
 
-        eq_(post_path, "2015-07-13-just-some-text.md")
+        assert post_path == "2015-07-13-just-some-text.md"
         post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
 
         _, body = parse_post(post_fn)
-        eq_(body, u"\nFoo 👍🔫")
+        assert body == u"\nFoo 👍🔫"
 
     def test_handleNoPhotos(self):
         msg = MIMEText("""Just a test; no photos.""")
@@ -193,11 +192,11 @@ class TestEmailHandler:
 
         post_path = self.handler.process_message(msg)
 
-        eq_(post_path, "2015-07-13-just-some-text.md")
+        assert post_path == "2015-07-13-just-some-text.md"
         post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
 
-        ok_(not self.mock_s3_bucket.objects.filter.called)
-        ok_(not self.mock_geocoder.reverse.called)
+        assert not self.mock_s3_bucket.objects.filter.called
+        assert not self.mock_geocoder.reverse.called
 
         frontmatter, _ = parse_post(post_fn)
         # {'author': 'blalor@bravo5.org',
@@ -206,14 +205,14 @@ class TestEmailHandler:
         #  'layout': 'post',
         #  'tags': ['photo'],
         #  'title': 'Fenway fireworks'}
-        eq_(frontmatter["author"], "blalor@bravo5.org")
-        ok_("photo" not in frontmatter["tags"])
-        ok_("images" not in frontmatter)
+        assert frontmatter["author"] == "blalor@bravo5.org"
+        assert "photo" not in frontmatter["tags"]
+        assert "images" not in frontmatter
 
     def test_stripSignature(self):
         msg = MIMEText("""some text ramble ramble bla bla bla
 
--- 
+--
 Nobody
 nobody@home.com
 """)
@@ -226,12 +225,12 @@ nobody@home.com
 
         post_path = self.handler.process_message(msg)
 
-        eq_(post_path, "2015-07-13-just-some-text.md")
+        assert post_path == "2015-07-13-just-some-text.md"
         post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
 
         _, body = parse_post(post_fn)
-        ok_(body.startswith("\nsome text ramble ramble"))
-        ok_("-- \nNobody\nnobody@home.com" not in body, "found signature")
+        assert body.startswith("\nsome text ramble ramble")
+        assert "-- \nNobody\nnobody@home.com" not in body, "found signature"
 
     def test_stripSignature2(self):
         msg = MIMEText("""some text ramble ramble bla bla bla
@@ -246,12 +245,12 @@ Sent from my iPhone""")
 
         post_path = self.handler.process_message(msg)
 
-        eq_(post_path, "2015-07-13-just-some-text.md")
+        assert post_path == "2015-07-13-just-some-text.md"
         post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
 
         _, body = parse_post(post_fn)
-        ok_(body.startswith("\nsome text ramble ramble"))
-        ok_("Sent from my iPhone" not in body, "found signature")
+        assert body.startswith("\nsome text ramble ramble")
+        assert "Sent from my iPhone" not in body, "found signature"
 
     def test_addTagsFromMsg(self):
         msg = MIMEText("""tags: foo, baz bap
@@ -266,14 +265,14 @@ some text ramble ramble bla bla bla
 
         post_path = self.handler.process_message(msg)
 
-        eq_(post_path, "2015-07-13-just-some-text.md")
+        assert post_path == "2015-07-13-just-some-text.md"
         post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
 
         frontmatter, body = parse_post(post_fn)
-        ok_("foo" in frontmatter["tags"])
-        ok_("baz bap" in frontmatter["tags"])
+        assert "foo" in frontmatter["tags"]
+        assert "baz bap" in frontmatter["tags"]
 
-        ok_(body.startswith("\nsome text ramble ramble"))
+        assert body.startswith("\nsome text ramble ramble")
 
     def test_addTagsFromMsgUppercase(self):
         msg = MIMEText("""Tags: foo, baz bap""")
@@ -287,15 +286,15 @@ some text ramble ramble bla bla bla
         post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", self.handler.process_message(msg))
 
         frontmatter, _ = parse_post(post_fn)
-        ok_("foo" in frontmatter["tags"])
-        ok_("baz bap" in frontmatter["tags"])
+        assert "foo" in frontmatter["tags"]
+        assert "baz bap" in frontmatter["tags"]
 
     def test_extractsGPSTimestamp(self):
         self.mock_s3_bucket.objects.filter.return_value = []
         self.mock_geocoder.reverse.return_value = None
         self.mock_s3_bucket.upload.return_value = None
 
-        with gzip.open(os.path.join(self.FIXTURE_DIR, "photo-1.msg.gz"), "r") as ifp:
+        with gzip.open(os.path.join(self.FIXTURE_DIR, "photo-1.msg.gz"), "rt", encoding="utf-8") as ifp:
             post_path = self.handler.process_stream(ifp)
 
         post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
@@ -308,9 +307,9 @@ some text ramble ramble bla bla bla
         #  'layout': 'post',
         #  'tags': ['photo'],
         #  'title': 'Fenway fireworks'}
-        eq_(len(frontmatter["images"]), 1)
+        assert len(frontmatter["images"]) == 1
         img = frontmatter["images"]["img_5810_jpg"]
-        eq_(img["exif"]["dateTimeOriginal"], "2015-07-03T23:39:33")
-        eq_(img["exif"]["dateTimeGps"],      "2015-07-04T03:39:33+00:00")
+        assert img["exif"]["dateTimeOriginal"] == "2015-07-03T23:39:33"
+        assert img["exif"]["dateTimeGps"] ==      "2015-07-04T03:39:33+00:00"
 
-        ok_(r"{% include exif-image.html img=page.images.img_5810_jpg %}" in body)
+        assert r"{% include exif-image.html img=page.images.img_5810_jpg %}" in body

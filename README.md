@@ -41,3 +41,10 @@ images:
 ```
 
 See [`config.py`](post_by_email/config.py) for configuration.
+
+## developing and testing
+
+```
+$ pip install -e '.[tests]'
+$ pytest
+```

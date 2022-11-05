@@ -2,16 +2,16 @@
 
 import logging
 import os
-import email.header
-import StringIO
+import email, email.message
+import io
 import codecs
 import re
 
 from slugify import slugify
 import rtyaml as yaml
 
-from time_util import parse_date, UTC
-import exif_renderer
+from .time_util import parse_date, UTC
+from . import exif_renderer
 from collections import OrderedDict
 
 
@@ -46,7 +46,7 @@ class EmailHandler(object):
         self.commit_changes = commit_changes
         self.jekyll_prefix = jekyll_prefix
 
-    def __process_image(self, slug, photo):
+    def __process_image(self, slug: str, photo: email.message.Message):
         img_info = OrderedDict()
 
         img_path = os.path.join("email", slug, photo.get_filename())
@@ -60,7 +60,7 @@ class EmailHandler(object):
 
         self.logger.debug("processing %s", s3_obj_name)
 
-        photo_io = StringIO.StringIO(photo.get_payload(decode=True))
+        photo_io = io.BytesIO(photo.get_payload(decode=True))
         img_info["exif"] = exif_renderer.render_stream(photo_io)
 
         if "location" in img_info["exif"]:
@@ -103,7 +103,7 @@ class EmailHandler(object):
                 )
 
             else:
-                self.logger.warn("no reverse geocoding result found for %r", (img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]))
+                self.logger.warning("no reverse geocoding result found for %r", (img_info["exif"]["location"]["latitude"], img_info["exif"]["location"]["longitude"]))
 
         ## upload image to s3
         self.logger.debug("uploading to S3: %s", s3_obj_name)
@@ -154,7 +154,7 @@ class EmailHandler(object):
         author_name, fm["author"] = email.utils.parseaddr(decode_header(msg["From"]))
 
         ## message body, decoded
-        body = unicode(
+        body = str(
             msg_parts["text/plain"][0].get_payload(decode=True),
             msg_parts["text/plain"][0].get_content_charset("utf-8"),
         )
@@ -254,6 +254,6 @@ class EmailHandler(object):
                 ## push the change
                 self.git.push()
             else:
-                self.logger.warn("not committing changes")
+                self.logger.warning("not committing changes")
 
         return post_rel_fn

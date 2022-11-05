@@ -18,18 +18,20 @@ setup(
 
     packages=find_packages(),
     install_requires=[
-        "dulwich==0.18.6", #  --global-option=--pure
-        "boto3 >=1.7,<2",
-        "itsdangerous >=0.24,<1",
-        "rtyaml",
+        "dulwich ~= 0.20", #  --global-option=--pure
+        "boto3 ~= 1.26",
+        "itsdangerous ~= 2.1",
+        "rtyaml ~= 1.0",
+        "markdownify ~= 0.11",
 
-        "ExifRead >=2.1,<3",
-        "python-slugify >=1.2,<2",
-        "geopy >=1.16,<2",
+        "ExifRead ~= 3.0",
+        "python-slugify ~= 6.1",
+        "geopy ~= 2.2",
     ],
-    tests_require=[
-        "nose",
-        "mock",
-    ],
-    test_suite="nose.collector",
+    extras_require={
+        "tests": [
+            "pytest ~= 7.2",
+            "mock ~= 4.0",
+        ]
+    }
 )

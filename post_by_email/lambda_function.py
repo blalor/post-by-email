@@ -55,7 +55,7 @@ def lambda_handler(event, context):
 
             if domain.lower() == config.RECEIVING_DOMAIN:
                 target, addr_hash = recip.split(config.EXTENSION_DELIMITER, 1)
-                print target, addr_hash
+                print(target, addr_hash)
 
                 logger.info("processing request for %s from %s with hash %s", target, sender, addr_hash)
 

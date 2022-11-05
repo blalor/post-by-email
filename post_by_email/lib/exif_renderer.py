@@ -2,7 +2,8 @@
 
 import exifread
 from datetime import datetime
-from time_util import UTC
+from .time_util import UTC
+from collections import OrderedDict
 
 
 def gps_to_float(ref, values):
