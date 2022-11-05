@@ -65,60 +65,60 @@ class TestEmailHandler:
             point=geopy.location.Point(lat, lon, 0),
             raw={
                 'annotations': {'DMS': {'lat': "42\xb0 20' 49.39584'' N",
-                                          'lng': "71\xb0 5' 47.26752'' W"},
-                                 'FIPS': {'county': '25025', 'state': '25'},
-                                 'MGRS': '19TCG2731890439',
-                                 'Maidenhead': 'FN42ki83kh',
-                                 'Mercator': {'x': -7914422.081, 'y': 5184317.945},
-                                 'OSM': {'edit_url': 'https://www.openstreetmap.org/edit?node=1712242950#map=17/42.34705/-71.09646',
-                                          'url': 'https://www.openstreetmap.org/?mlat=42.34705&mlon=-71.09646#map=17/42.34705/-71.09646'},
-                                 'callingcode': 1,
-                                 'currency': {'alternate_symbols': ['US$'],
-                                               'decimal_mark': '.',
-                                               'disambiguate_symbol': 'US$',
-                                               'html_entity': '$',
-                                               'iso_code': 'USD',
-                                               'iso_numeric': 840,
-                                               'name': 'United States Dollar',
-                                               'smallest_denomination': 1,
-                                               'subunit': 'Cent',
-                                               'subunit_to_unit': 100,
-                                               'symbol': '$',
-                                               'symbol_first': 1,
-                                               'thousands_separator': ','},
-                                 'flag': '\U0001f1fa\U0001f1f8',
-                                 'geohash': 'drt2yjj1kr4ej6jr10s8',
-                                 'qibla': 60.4,
-                                 'sun': {'rise': {'apparent': 1536055980,
-                                                    'astronomical': 1536050040,
-                                                    'civil': 1536054240,
-                                                    'nautical': 1536052200},
-                                          'set': {'apparent': 1536102660,
-                                                   'astronomical': 1536022140,
-                                                   'civil': 1536104400,
-                                                   'nautical': 1536020040}},
-                                 'timezone': {'name': 'America/New_York',
-                                               'now_in_dst': 1,
-                                               'offset_sec': -14400,
-                                               'offset_string': -400,
-                                               'short_name': 'EDT'},
-                                 'what3words': {'words': 'tour.humans.sport'}},
+                                        'lng': "71\xb0 5' 47.26752'' W"},
+                                'FIPS': {'county': '25025', 'state': '25'},
+                                'MGRS': '19TCG2731890439',
+                                'Maidenhead': 'FN42ki83kh',
+                                'Mercator': {'x': -7914422.081, 'y': 5184317.945},
+                                'OSM': {'edit_url': 'https://www.openstreetmap.org/edit?node=1712242950#map=17/42.34705/-71.09646',
+                                        'url': 'https://www.openstreetmap.org/?mlat=42.34705&mlon=-71.09646#map=17/42.34705/-71.09646'},
+                                'callingcode': 1,
+                                'currency': {'alternate_symbols': ['US$'],
+                                             'decimal_mark': '.',
+                                             'disambiguate_symbol': 'US$',
+                                             'html_entity': '$',
+                                             'iso_code': 'USD',
+                                             'iso_numeric': 840,
+                                             'name': 'United States Dollar',
+                                             'smallest_denomination': 1,
+                                             'subunit': 'Cent',
+                                             'subunit_to_unit': 100,
+                                             'symbol': '$',
+                                             'symbol_first': 1,
+                                             'thousands_separator': ','},
+                                'flag': '\U0001f1fa\U0001f1f8',
+                                'geohash': 'drt2yjj1kr4ej6jr10s8',
+                                'qibla': 60.4,
+                                'sun': {'rise': {'apparent': 1536055980,
+                                                 'astronomical': 1536050040,
+                                                 'civil': 1536054240,
+                                                 'nautical': 1536052200},
+                                        'set': {'apparent': 1536102660,
+                                                'astronomical': 1536022140,
+                                                'civil': 1536104400,
+                                                'nautical': 1536020040}},
+                                'timezone': {'name': 'America/New_York',
+                                             'now_in_dst': 1,
+                                             'offset_sec': -14400,
+                                             'offset_string': -400,
+                                             'short_name': 'EDT'},
+                                'what3words': {'words': 'tour.humans.sport'}},
                 'bounds': {'northeast': {'lat': 42.3471544, 'lng': -71.0963632},
-                            'southwest': {'lat': 42.3469544, 'lng': -71.0965632}},
+                           'southwest': {'lat': 42.3469544, 'lng': -71.0965632}},
                 'components': {'ISO_3166-1_alpha-2': 'US',
-                                '_type': 'bar',
-                                'bar': 'Bleacher Bar',
-                                'city': 'Boston',
-                                'country': 'USA',
-                                'country_code': 'us',
-                                'county': 'Suffolk County',
-                                'house_number': '82A',
-                                'neighbourhood': 'Roxbury Crossing',
-                                'postcode': '02114',
-                                'road': 'Lansdowne Street',
-                                'state': 'Massachusetts',
-                                'state_code': 'MA',
-                                'suburb': 'Fenway'},
+                               '_type': 'bar',
+                               'bar': 'Bleacher Bar',
+                               'city': 'Boston',
+                               'country': 'USA',
+                               'country_code': 'us',
+                               'county': 'Suffolk County',
+                               'house_number': '82A',
+                               'neighbourhood': 'Roxbury Crossing',
+                               'postcode': '02114',
+                               'road': 'Lansdowne Street',
+                               'state': 'Massachusetts',
+                               'state_code': 'MA',
+                               'suburb': 'Fenway'},
                 'confidence': 9,
                 'formatted': 'Bleacher Bar, 82A Lansdowne Street, Boston, MA 02114, United States of America',
                 'geometry': {'lat': 42.3470544, 'lng': -71.0964632}
@@ -167,7 +167,7 @@ class TestEmailHandler:
         assert r"{% include exif-image.html img=page.images.img_5810_jpg %}" in body
 
     def test_parseMessagePreservingEmoji(self):
-        msg = MIMEText("""Foo 👍🔫""".encode("utf-8"), "plain", "UTF-8")
+        msg = MIMEText("Foo 👍🔫", "plain", "UTF-8")
 
         msg["Message-ID"] = "7351da42-12a8-41a1-9b60-25ee7b784720"
         msg["From"] = "Brian Lalor <blalor@bravo5.org>"
@@ -186,7 +186,7 @@ class TestEmailHandler:
         assert body == "\nFoo 👍🔫"
 
     def test_handleNoPhotos(self):
-        msg = MIMEText("""Just a test; no photos.""")
+        msg = MIMEText("Just a test; no photos.")
         msg["Message-ID"] = "7351da42-12a8-41a1-9b60-25ee7b784720"
         msg["From"] = "Brian Lalor <blalor@bravo5.org>"
         msg["To"] = "photos@localhost"
@@ -278,7 +278,7 @@ some text ramble ramble bla bla bla
         assert body.startswith("\nsome text ramble ramble")
 
     def test_addTagsFromMsgUppercase(self):
-        msg = MIMEText("""Tags: foo, baz bap""")
+        msg = MIMEText("Tags: foo, baz bap")
 
         msg["Message-ID"] = "7351da42-12a8-41a1-9b60-25ee7b784720"
         msg["From"] = "Brian Lalor <blalor@bravo5.org>"
