@@ -7,6 +7,7 @@ import os
 import shutil
 import tempfile
 import gzip
+import email.header
 import rtyaml as yaml
 import io
 import geopy
@@ -171,12 +172,14 @@ class TestEmailHandler:
         msg["Message-ID"] = "7351da42-12a8-41a1-9b60-25ee7b784720"
         msg["From"] = "Brian Lalor <blalor@bravo5.org>"
         msg["To"] = "photos@localhost"
-        msg["Subject"] = "just some text"
+        msg["Subject"] = email.header.make_header([
+            ("just some 💬".encode("utf-8"), "utf-8")
+        ])
         msg["Date"] = formatdate(1436782211)
 
         post_path = self.handler.process_message(msg)
 
-        assert post_path == "2015-07-13-just-some-text.md"
+        assert post_path == "2015-07-13-just-some-u0001f4ac.md"
         post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
 
         _, body = parse_post(post_fn)

@@ -2,7 +2,7 @@
 
 import logging
 import os
-import email, email.message
+from email import message_from_file, utils, header, message
 import io
 import codecs
 import re
@@ -15,10 +15,15 @@ from . import exif_renderer
 from collections import OrderedDict
 
 
-def decode_header(hdr, default_charset="us-ascii"):
+def decode_header(hdr: header.Header):
     ## decode_header returns (string, encoding)
-    val, charset = email.header.decode_header(hdr)[0]
-    return unicode(val, charset if charset else default_charset)
+    val, charset = header.decode_header(hdr)[0]
+    if charset is None:
+        ## val is a string
+        return val
+    else:
+        ## val is bytes
+        return val.decode(charset)
 
 
 class PostExistsException(Exception):
@@ -46,7 +51,7 @@ class EmailHandler(object):
         self.commit_changes = commit_changes
         self.jekyll_prefix = jekyll_prefix
 
-    def __process_image(self, slug: str, photo: email.message.Message):
+    def __process_image(self, slug: str, photo: message.Message):
         img_info = OrderedDict()
 
         img_path = os.path.join("email", slug, photo.get_filename())
@@ -122,7 +127,7 @@ class EmailHandler(object):
         return img_info
 
     def process_stream(self, stream):
-        return self.process_message(email.message_from_file(stream))
+        return self.process_message(message_from_file(stream))
 
     def process_message(self, msg):
         self.logger.debug("%s from %s to %s: %s", msg["message-id"], msg["from"], msg["to"], msg["subject"])
@@ -151,7 +156,7 @@ class EmailHandler(object):
         fm["categories"] = "blog"
         fm["tags"] = []
 
-        author_name, fm["author"] = email.utils.parseaddr(decode_header(msg["From"]))
+        author_name, fm["author"] = utils.parseaddr(decode_header(msg["From"]))
 
         ## message body, decoded
         body = str(
