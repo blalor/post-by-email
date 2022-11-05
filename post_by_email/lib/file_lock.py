@@ -26,7 +26,7 @@ def file_lock(lock_file, wait=0, pause=1):
 
                 ## break out of loop
                 break
-            except IOError, e:
+            except IOError as e:
                 if e.errno == errno.EWOULDBLOCK:
                     ## already locked
                     pass

@@ -1,11 +1,11 @@
 # -*- encoding: utf-8 -*-
 
 import os
-from file_lock import file_lock
+from .file_lock import file_lock
 from contextlib import contextmanager
 from dulwich import porcelain
 from dulwich.repo import Repo
-from time_util import parse_date
+from .time_util import parse_date
 from datetime import datetime
 
 import logging

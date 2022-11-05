@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
-from lib.git import Git
-import config
+from .lib.git import Git
+from . import config
 
 
 def main():

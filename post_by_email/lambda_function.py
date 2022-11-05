@@ -3,8 +3,6 @@
 
 ## https://docs.aws.amazon.com/ses/latest/DeveloperGuide/receiving-email-notifications-examples.html
 
-# https://github.com/airbnb/streamalert/pull/623/commits/02533c42136326117578d4857a2c6a8659306359
-from __future__ import absolute_import
 
 import json
 import logging
@@ -55,7 +53,7 @@ def lambda_handler(event, context):
 
             if domain.lower() == config.RECEIVING_DOMAIN:
                 target, addr_hash = recip.split(config.EXTENSION_DELIMITER, 1)
-                print(target, addr_hash)
+                print((target, addr_hash))
 
                 logger.info("processing request for %s from %s with hash %s", target, sender, addr_hash)
 

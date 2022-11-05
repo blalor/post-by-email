@@ -88,7 +88,7 @@ class EmailHandler(object):
                     detail = components.get(_type)
 
                 locality_keys = ("city", "village", "hamlet", "locality", "town")
-                locality = [v for k, v in components.items() if k in locality_keys]
+                locality = [v for k, v in list(components.items()) if k in locality_keys]
                 if locality:
                     locality = locality[0]
                 else:
@@ -100,10 +100,10 @@ class EmailHandler(object):
                 if not state:
                     state = components.get("state")
 
-                flag = oc.get("annotations", {}).get("flag", u"❓")
+                flag = oc.get("annotations", {}).get("flag", "❓")
 
-                img_info["exif"]["location"]["name"] = u"%s %s" % (
-                    u", ".join([x for x in (detail, locality, state) if x]),
+                img_info["exif"]["location"]["name"] = "%s %s" % (
+                    ", ".join([x for x in (detail, locality, state) if x]),
                     flag,
                 )
 
@@ -217,7 +217,7 @@ class EmailHandler(object):
         if image_includes:
             image_includes.append("")
 
-        body = u"\n".join(image_includes + body_lines)
+        body = "\n".join(image_includes + body_lines)
 
         self.logger.debug("generating %s", post_full_fn)
 
