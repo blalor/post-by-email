@@ -31,6 +31,7 @@ setup(
     extras_require={
         "tests": [
             "pytest ~= 7.2",
+            "pytest-cov ~= 4.0",
             "mock ~= 4.0",
         ]
     }

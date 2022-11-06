@@ -2,3 +2,5 @@
 *.egg-info/
 .eggs/
 build
+.coverage
+htmlcov/
