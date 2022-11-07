@@ -2,7 +2,7 @@
 
 import logging
 import os
-from email import message_from_file, utils, header, message
+from email import message_from_binary_file, utils, header, message
 import io
 import codecs
 import re
@@ -127,7 +127,7 @@ class EmailHandler(object):
         return img_info
 
     def process_stream(self, stream):
-        return self.process_message(message_from_file(stream))
+        return self.process_message(message_from_binary_file(stream))
 
     def process_message(self, msg):
         self.logger.debug("%s from %s to %s: %s", msg["message-id"], msg["from"], msg["to"], msg["subject"])

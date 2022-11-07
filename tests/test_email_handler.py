@@ -128,7 +128,7 @@ class TestEmailHandler:
 
         self.mock_s3_bucket.put_object.return_value = None
 
-        with gzip.open(os.path.join(self.FIXTURE_DIR, "photo-1.msg.gz"), "rt", encoding="utf-8") as ifp:
+        with gzip.open(os.path.join(self.FIXTURE_DIR, "photo-1.msg.gz")) as ifp:
             post_path = self.handler.process_stream(ifp)
 
         assert post_path == "2015-07-05-fenway-fireworks.md"
@@ -297,7 +297,7 @@ some text ramble ramble bla bla bla
         self.mock_geocoder.reverse.return_value = None
         self.mock_s3_bucket.upload.return_value = None
 
-        with gzip.open(os.path.join(self.FIXTURE_DIR, "photo-1.msg.gz"), "rt", encoding="utf-8") as ifp:
+        with gzip.open(os.path.join(self.FIXTURE_DIR, "photo-1.msg.gz")) as ifp:
             post_path = self.handler.process_stream(ifp)
 
         post_fn = os.path.join(self.git_repo_dir, "_posts", "blog", post_path)
