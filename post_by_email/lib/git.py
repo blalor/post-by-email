@@ -5,6 +5,7 @@ from .file_lock import file_lock
 from contextlib import contextmanager
 from dulwich import porcelain
 from dulwich.repo import Repo
+from dulwich.config import ConfigDict
 from .time_util import parse_date
 from datetime import datetime
 
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class Git(object):
     """wrapper for git commands"""
+
     def __init__(self, repo_url, repo_path):
         super(Git, self).__init__()
         self.repo_url = repo_url
@@ -25,11 +27,14 @@ class Git(object):
         if os.path.exists(os.path.join(self.repo_path, ".git")):
             self._repo = Repo(self.repo_path)
 
+        self.config = ConfigDict()
+
     def clone(self):
         logger.info("cloning")
         self._repo = porcelain.clone(
             self.repo_url,
             target=self.repo_path,
+            config=self.config,
         )
 
     @contextmanager
@@ -68,11 +73,11 @@ class Git(object):
         try:
             self._repo.do_commit(
                 message=message.encode("utf-8"),
-                author=("%s <%s>" % (author_name, author_email)).encode("utf-8"),
+                author=f"{author_name} <{author_email}>".encode("utf-8"),
                 author_timestamp=author_timestamp,
                 author_timezone=author_timezone,
-                committer="Nobody <nobody@post-by-email>",
-                encoding="utf-8",
+                committer=b"Nobody <nobody@post-by-email>",
+                encoding=b"utf-8",
             )
         finally:
             self._repo.close()
@@ -81,5 +86,8 @@ class Git(object):
         logger.info("pushing")
 
         current_branch = self._repo.refs.follow(b"HEAD")[0][1]
-        ## self._repo.path, not self._repo
-        porcelain.push(self._repo.path, self.repo_url, current_branch)
+        porcelain.push(
+            self._repo.path,
+            remote_location=self.repo_url,
+            refspecs=current_branch,
+        )

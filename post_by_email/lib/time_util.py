@@ -45,11 +45,11 @@ class FixedOffset(datetime.tzinfo):
 UTC = FixedOffset(ZERO, "UTC")
 
 
-def parse_date(date_str):
+def parse_date(date_str: str):
     ## timezones in python continue to be a shit-show
     ## returns datetime in the original zone
     ## http://stackoverflow.com/a/23117071/53051
-    tt = email.utils.parsedate_tz(date_str)
+    tt: tuple[int, ...] = email.utils.parsedate_tz(date_str)
 
     ## timestamp in utc
     timestamp = calendar.timegm(tt) - tt[9]

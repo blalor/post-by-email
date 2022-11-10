@@ -15,7 +15,7 @@ from email.mime.text import MIMEText
 from email.utils import formatdate
 
 
-def parse_post(fn):
+def parse_post(fn) -> tuple[dict, str]:
     buf = io.StringIO()
 
     with open(fn, "r", encoding="utf-8") as ifp:
@@ -60,9 +60,9 @@ class TestEmailHandler:
         self.mock_s3_bucket.objects.filter.return_value = []
 
         lat, lon = 42.347011111111115, -71.09632222222221
-        location = geopy.location.Location(
+        location = geopy.Location(
             "the park",
-            point=geopy.location.Point(lat, lon, 0),
+            point=geopy.Point(lat, lon, 0),
             raw={
                 'annotations': {'DMS': {'lat': "42\xb0 20' 49.39584'' N",
                                         'lng': "71\xb0 5' 47.26752'' W"},
